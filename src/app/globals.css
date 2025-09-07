@@ -87,15 +87,17 @@
 
 @layer utilities {
   @media print {
-    body {
-      -webkit-print-color-adjust: exact;
+    body * {
+      visibility: hidden;
+    }
+    .print-container, .print-container * {
+      visibility: visible;
     }
     .print-container {
-       display: block;
-       position: absolute;
-       top: 0;
-       left: 0;
-       width: 100%;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
     }
     .print\:hidden {
       display: none;

@@ -146,7 +146,7 @@ const TotalsDisplay = ({
   ];
 
   return (
-    <Card className="sticky top-20 print-container">
+    <Card className="sticky top-20">
       <CardHeader>
         <CardTitle>Résumé des émissions</CardTitle>
         <CardDescription>Émissions totales de CO₂e par catégorie.</CardDescription>
@@ -605,7 +605,7 @@ export function CarbonConsultForm() {
               </div>
             </Tabs>
 
-            <Card className="mt-8 print:hidden">
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Wand2 className="h-5 w-5 text-accent" /> Suggestions de l'IA
@@ -627,21 +627,24 @@ export function CarbonConsultForm() {
                   </div>
                 )}
               </CardContent>
-              <CardFooter className="flex-col items-start gap-4 border-t px-6 py-4 sm:flex-row sm:justify-between">
+              <CardFooter className="border-t px-6 py-4">
                 <Button type="button" variant="outline" onClick={handleGetSuggestions} disabled={isPending}>
                   {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
                   Obtenir les suggestions de l'IA
                 </Button>
+              </CardFooter>
+            </Card>
+            
+            <div className="flex justify-end print:hidden">
                 <Button type="submit" disabled={isSubmitPending}>
                   {isSubmitPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Enregistrer la soumission
                 </Button>
-              </CardFooter>
-            </Card>
+            </div>
           </form>
         </Form>
       </div>
-      <div className="w-full">
+      <div className="w-full print-container">
           <TotalsDisplay totals={totals} />
       </div>
     </div>

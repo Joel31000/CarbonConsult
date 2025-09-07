@@ -25,7 +25,7 @@ export default function Home() {
           </Button>
         </div>
       </header>
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 print:p-0">
+      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <div className="mx-auto grid w-full max-w-7xl gap-2 print:hidden">
           <h1 className="font-headline text-3xl font-semibold">
             Soumission de l'empreinte carbone du fournisseur
