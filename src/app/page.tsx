@@ -1,10 +1,11 @@
+
 import { CarbonConsultForm } from '@/components/carbon-consult-form';
 import { Logo } from '@/components/icons';
 
 export default function Home() {
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
-      <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-card px-4 md:px-6">
+      <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-card px-4 md:px-6 print:hidden">
         <div className="flex w-full items-center gap-2">
           <a href="#" className="flex items-center gap-2 text-lg font-semibold">
             <Logo className="h-7 w-7 text-primary" />
@@ -12,8 +13,8 @@ export default function Home() {
           </a>
         </div>
       </header>
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        <div className="mx-auto grid w-full max-w-7xl gap-2">
+      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 print:p-0">
+        <div className="mx-auto grid w-full max-w-7xl gap-2 print:hidden">
           <h1 className="font-headline text-3xl font-semibold">
             Soumission de l'empreinte carbone du fournisseur
           </h1>
@@ -25,9 +26,11 @@ export default function Home() {
           <CarbonConsultForm />
         </div>
       </main>
-      <footer className="border-t bg-card/50 py-4 text-center text-sm text-muted-foreground">
+      <footer className="border-t bg-card/50 py-4 text-center text-sm text-muted-foreground print:hidden">
         © {new Date().getFullYear()} CarbonConsult. Tous droits réservés.
       </footer>
     </div>
   );
 }
+
+    
