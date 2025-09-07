@@ -288,17 +288,25 @@ export function CarbonConsultForm() {
         usage: "Aucun détail d'utilisation spécifié.",
       };
 
-      const result = await getAiSuggestions(input);
-      if (result.success && result.suggestions) {
-        setAiSuggestions(result.suggestions);
-        setIsSuggestionDialogOpen(true);
-      } else {
+      try {
+        const result = await getAiSuggestions(input);
+        if (result.success && result.suggestions) {
+          setAiSuggestions(result.suggestions);
+          setIsSuggestionDialogOpen(true);
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Échec de la suggestion de l'IA",
+            description: result.error || "Une erreur inattendue est survenue. Veuillez réessayer.",
+          });
+        }
+      } catch (error) {
+        console.error("Erreur lors de la récupération des suggestions de l'IA:", error);
         toast({
           variant: "destructive",
-          title: "Échec de la suggestion de l'IA",
+          title: "Erreur de communication",
           description:
-            result.error ||
-            "Une erreur inattendue est survenue. Veuillez réessayer.",
+            "Impossible de contacter le service IA. Vérifiez votre connexion et la configuration de la clé API.",
         });
       }
     });
