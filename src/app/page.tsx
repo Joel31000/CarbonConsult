@@ -17,7 +17,7 @@ export default function Home() {
         <div className="flex w-full items-center justify-between">
           <a href="#" className="flex items-center gap-2 text-lg font-semibold text-primary">
             <Logo className="h-7 w-7" />
-            <span className="font-headline text-2xl tracking-tight">EcoDesign Comparator</span>
+            <span className="font-headline text-2xl tracking-tight">CarbonConsult</span>
           </a>
           <Button type="button" onClick={handlePrint} variant="default" size="default">
             <Download className="mr-2 h-4 w-4" />
@@ -36,7 +36,7 @@ export default function Home() {
         </div>
       </main>
       <footer className="border-t border-border/40 bg-background/95 py-4 text-center text-sm text-muted-foreground print:hidden">
-        © {new Date().getFullYear()} EcoDesign Comparator. Tous droits réservés.
+        © {new Date().getFullYear()} CarbonConsult. Tous droits réservés.
       </footer>
     </div>
   );
