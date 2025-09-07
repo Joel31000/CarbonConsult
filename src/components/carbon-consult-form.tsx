@@ -18,7 +18,6 @@ import {
   Trash2,
   Truck,
   Wand2,
-  Printer,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState, useTransition } from "react";
 import {
@@ -146,21 +145,11 @@ const TotalsDisplay = ({
     { name: "FdF", co2e: totals.endOfLife.toFixed(2) },
   ];
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
     <Card className="sticky top-20 print-container">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Résumé des émissions</CardTitle>
-          <CardDescription>Émissions totales de CO₂e par catégorie.</CardDescription>
-        </div>
-        <Button type="button" variant="outline" size="icon" onClick={handlePrint} className="print:hidden">
-            <Printer className="h-4 w-4" />
-            <span className="sr-only">Imprimer le bilan</span>
-        </Button>
+      <CardHeader>
+        <CardTitle>Résumé des émissions</CardTitle>
+        <CardDescription>Émissions totales de CO₂e par catégorie.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="text-center">
