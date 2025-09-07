@@ -56,12 +56,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { getAiSuggestions, saveSubmission } from "@/lib/actions";
 import { emissionFactors } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import type { SuggestCarbonImprovementsInput } from "@/ai/flows/suggest-carbon-improvements";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const formSchema = z.object({
   rawMaterials: z.array(
@@ -180,6 +188,7 @@ export function CarbonConsultForm() {
   const [isPending, startTransition] = useTransition();
   const [isSubmitPending, startSubmitTransition] = useTransition();
   const [aiSuggestions, setAiSuggestions] = useState<string | null>(null);
+  const [isSuggestionDialogOpen, setIsSuggestionDialogOpen] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -282,6 +291,7 @@ export function CarbonConsultForm() {
       const result = await getAiSuggestions(input);
       if (result.success && result.suggestions) {
         setAiSuggestions(result.suggestions);
+        setIsSuggestionDialogOpen(true);
       } else {
         toast({
           variant: "destructive",
@@ -614,19 +624,6 @@ export function CarbonConsultForm() {
                   Cliquez sur le bouton pour obtenir des suggestions de l'IA sur la façon de réduire votre empreinte carbone.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                {isPending && (
-                  <div className="flex items-center justify-center rounded-md border border-dashed p-8">
-                    <Loader2 className="mr-2 h-8 w-8 animate-spin text-muted-foreground" />
-                    <span className="text-muted-foreground">Génération des suggestions...</span>
-                  </div>
-                )}
-                {aiSuggestions && !isPending && (
-                  <div className="prose prose-sm max-w-none rounded-md border bg-muted/50 p-4">
-                      <p className="whitespace-pre-wrap font-body text-foreground">{aiSuggestions}</p>
-                  </div>
-                )}
-              </CardContent>
               <CardFooter className="border-t px-6 py-4">
                 <Button type="button" variant="outline" onClick={handleGetSuggestions} disabled={isPending}>
                   {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
@@ -647,6 +644,23 @@ export function CarbonConsultForm() {
       <div className="w-full print-container">
           <TotalsDisplay totals={totals} />
       </div>
+
+      <AlertDialog open={isSuggestionDialogOpen} onOpenChange={setIsSuggestionDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Wand2 className="h-5 w-5 text-accent" /> Suggestions de l'IA
+            </AlertDialogTitle>
+            <AlertDialogDescription className="prose prose-sm max-w-none whitespace-pre-wrap pt-4 font-body text-foreground">
+              {aiSuggestions}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setIsSuggestionDialogOpen(false)}>Fermer</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
