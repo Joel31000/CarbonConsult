@@ -86,18 +86,24 @@
 }
 
 @layer utilities {
-  .printable-content {
-    display: none;
-  }
-  .print\:hidden {
+  .print-only {
     display: none;
   }
   @media print {
-    body > :not(.printable-content) {
-      display: none;
+    body * {
+      visibility: hidden;
     }
-    .printable-content {
-      display: block;
+    .print-container, .print-container * {
+      visibility: visible;
+    }
+    .print-container {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+    }
+    .print\:hidden {
+      display: none;
     }
   }
 }

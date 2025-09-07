@@ -147,19 +147,11 @@ const TotalsDisplay = ({
   ];
 
   const handlePrint = () => {
-    const printableContent = document.getElementById('printable-content');
-    if (printableContent) {
-      const parent = printableContent.parentElement;
-      if (parent) {
-        parent.classList.add('printable-content');
-        window.print();
-        parent.classList.remove('printable-content');
-      }
-    }
+    window.print();
   };
 
   return (
-    <Card className="sticky top-20" id="printable-content">
+    <Card className="sticky top-20 print-container">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Résumé des émissions</CardTitle>
