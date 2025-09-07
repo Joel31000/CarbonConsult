@@ -17,7 +17,7 @@ import {
   Trash2,
   Truck,
 } from "lucide-react";
-import React, { useMemo, useTransition } from "react";
+import React, { useMemo, useState, useTransition } from "react";
 import {
   BarChart,
   CartesianGrid,
@@ -26,6 +26,7 @@ import {
   Tooltip as RechartsTooltip,
   Bar,
   ResponsiveContainer,
+  Legend,
 } from "recharts";
 
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { saveSubmission } from "@/lib/actions";
 import { emissionFactors } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 
 const formSchema = z.object({
   rawMaterials: z.array(
@@ -123,6 +129,7 @@ function SectionCard({
 
 const TotalsDisplay = ({
   totals,
+  details,
 }: {
   totals: {
     rawMaterials: number;
@@ -131,19 +138,88 @@ const TotalsDisplay = ({
     endOfLife: number;
     grandTotal: number;
   };
+  details: {
+    rawMaterials: { name: string; co2e: number }[];
+    manufacturing: { name: string; co2e: number }[];
+    transport: { name: string; co2e: number }[];
+    endOfLife: { name: string; co2e: number }[];
+  };
 }) => {
-  const chartData = [
-    { name: "Matériaux", co2e: totals.rawMaterials.toFixed(2) },
-    { name: "Fab.", co2e: totals.manufacturing.toFixed(2) },
-    { name: "Transport", co2e: totals.transport.toFixed(2) },
-    { name: "Fin de vie", co2e: totals.endOfLife.toFixed(2) },
+  const [chartMode, setChartMode] = useState<"aggregated" | "detailed">(
+    "aggregated"
+  );
+  
+  const chartConfig = useMemo(() => {
+    const config: ChartConfig = {};
+    const colors = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+    let colorIndex = 0;
+    
+    Object.values(details).flat().forEach(item => {
+      if (!config[item.name]) {
+        config[item.name] = {
+          label: item.name,
+          color: colors[colorIndex % colors.length]
+        };
+        colorIndex++;
+      }
+    });
+
+    config["Matériaux"] = { label: "Matériaux", color: "hsl(var(--chart-1))"};
+    config["Fabrication"] = { label: "Fabrication", color: "hsl(var(--chart-2))"};
+    config["Transport"] = { label: "Transport", color: "hsl(var(--chart-3))"};
+    config["Fin de vie"] = { label: "Fin de vie", color: "hsl(var(--chart-4))"};
+
+    return config;
+  }, [details]);
+
+
+  const aggregatedChartData = [
+    { name: "Matériaux", "Matériaux": totals.rawMaterials },
+    { name: "Fabrication", "Fabrication": totals.manufacturing },
+    { name: "Transport", "Transport": totals.transport },
+    { name: "Fin de vie", "Fin de vie": totals.endOfLife },
   ];
+
+  const detailedChartData = useMemo(() => {
+    return [
+      {
+        name: "Matériaux",
+        ...details.rawMaterials.reduce((acc, item) => ({ ...acc, [item.name]: item.co2e }), {})
+      },
+      {
+        name: "Fabrication",
+        ...details.manufacturing.reduce((acc, item) => ({ ...acc, [item.name]: item.co2e }), {})
+      },
+      {
+        name: "Transport",
+        ...details.transport.reduce((acc, item) => ({ ...acc, [item.name]: item.co2e }), {})
+      },
+      {
+        name: "Fin de vie",
+        ...details.endOfLife.reduce((acc, item) => ({ ...acc, [item.name]: item.co2e }), {})
+      },
+    ]
+  }, [details]);
+  
+  const currentChartData = chartMode === 'aggregated' ? aggregatedChartData : detailedChartData;
+  const bars = chartMode === 'aggregated' 
+    ? [{dataKey: "Matériaux", stackId: "a"}, {dataKey: "Fabrication", stackId: "a"}, {dataKey: "Transport", stackId: "a"}, {dataKey: "Fin de vie", stackId: "a"}]
+    : Object.keys(chartConfig)
+        .filter(key => !["Matériaux", "Fabrication", "Transport", "Fin de vie"].includes(key))
+        .map(key => ({ dataKey: key, stackId: "a" }));
 
   return (
     <Card className="sticky top-20">
       <CardHeader>
-        <CardTitle>Résumé des émissions</CardTitle>
-        <CardDescription>Émissions totales de CO₂e par catégorie.</CardDescription>
+        <div className="flex justify-between items-center">
+          <div className="space-y-1.5">
+            <CardTitle>Résumé des émissions</CardTitle>
+            <CardDescription>Émissions totales de CO₂e par catégorie.</CardDescription>
+          </div>
+           <Button variant="outline" size="sm" onClick={() => setChartMode(chartMode === 'aggregated' ? 'detailed' : 'aggregated')}>
+            {chartMode === 'aggregated' ? 'Vue Détaillée' : 'Vue Agrégée'}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="text-center">
@@ -153,16 +229,29 @@ const TotalsDisplay = ({
           </p>
           <p className="text-sm text-muted-foreground">kg CO₂e</p>
         </div>
-        <div className="h-48 w-full">
-          <ResponsiveContainer>
-            <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+        <div className="h-64 w-full">
+          <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
+            <BarChart accessibilityLayer data={currentChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis fontSize={12} tickLine={false} axisLine={false} unit="kg" />
-              <RechartsTooltip cursor={{ fill: 'hsl(var(--muted))' }} contentStyle={{backgroundColor: 'hsl(var(--card))'}} />
-              <Bar dataKey="co2e" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <YAxis fontSize={12} tickLine={false} axisLine={false} unit="kg" tickFormatter={(value) => value.toFixed(0)} />
+              <RechartsTooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
+              {chartMode === 'aggregated' && <Legend content={({ payload }) => null} />}
+
+              {chartMode === 'aggregated' ? (
+                <>
+                  <Bar dataKey="Matériaux" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Fabrication" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Transport" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Fin de vie" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                </>
+              ) : (
+                Object.keys(chartConfig).filter(key => !["Matériaux", "Fabrication", "Transport", "Fin de vie"].includes(key)).map((key) => (
+                    <Bar key={key} dataKey={key} fill={chartConfig[key].color} stackId="a" radius={[4, 4, 0, 0]} />
+                ))
+              )}
             </BarChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         </div>
       </CardContent>
     </Card>
@@ -202,45 +291,46 @@ export function CarbonConsultForm() {
 
   const watchedValues = useWatch({ control: form.control });
 
-  const totals = useMemo(() => {
-    const rmTotal =
-      watchedValues.rawMaterials?.reduce((sum, item) => {
-        const factor =
-          emissionFactors.materials.find((m) => m.name === item.material)
-            ?.factor || 0;
-        return sum + (item.quantity || 0) * factor;
-      }, 0) || 0;
+  const { totals, details } = useMemo(() => {
+    const rmDetails = watchedValues.rawMaterials?.map(item => {
+      const factor = emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
+      return { name: item.material || "Inconnu", co2e: (item.quantity || 0) * factor };
+    }).filter(item => item.co2e > 0) || [];
+    
+    const mfgDetails = watchedValues.manufacturing?.map(item => {
+      const factor = emissionFactors.manufacturing.find(p => p.name === item.process)?.factor || 0;
+      return { name: item.process || "Inconnu", co2e: (item.duration || 0) * factor };
+    }).filter(item => item.co2e > 0) || [];
 
-    const mfgTotal =
-      watchedValues.manufacturing?.reduce((sum, item) => {
-        const factor =
-          emissionFactors.manufacturing.find((m) => m.name === item.process)
-            ?.factor || 0;
-        return sum + (item.duration || 0) * factor;
-      }, 0) || 0;
+    const tptDetails = watchedValues.transport?.map(item => {
+      const factor = emissionFactors.transport.find(t => t.name === item.mode)?.factor || 0;
+      return { name: item.mode || "Inconnu", co2e: (item.distance || 0) * (item.weight || 0) * factor };
+    }).filter(item => item.co2e > 0) || [];
 
-    const tptTotal =
-      watchedValues.transport?.reduce((sum, item) => {
-        const factor =
-          emissionFactors.transport.find((m) => m.name === item.mode)
-            ?.factor || 0;
-        return sum + (item.distance || 0) * (item.weight || 0) * factor;
-      }, 0) || 0;
+    const eolDetails = watchedValues.endOfLife?.map(item => {
+      const factor = emissionFactors.endOfLife.find(e => e.name === item.method)?.factor || 0;
+      return { name: item.method || "Inconnu", co2e: (item.weight || 0) * factor };
+    }).filter(item => item.co2e > 0) || [];
 
-    const eolTotal =
-      watchedValues.endOfLife?.reduce((sum, item) => {
-        const factor =
-          emissionFactors.endOfLife.find((m) => m.name === item.method)
-            ?.factor || 0;
-        return sum + (item.weight || 0) * factor;
-      }, 0) || 0;
+    const rmTotal = rmDetails.reduce((sum, item) => sum + item.co2e, 0);
+    const mfgTotal = mfgDetails.reduce((sum, item) => sum + item.co2e, 0);
+    const tptTotal = tptDetails.reduce((sum, item) => sum + item.co2e, 0);
+    const eolTotal = eolDetails.reduce((sum, item) => sum + item.co2e, 0);
 
     return {
-      rawMaterials: rmTotal,
-      manufacturing: mfgTotal,
-      transport: tptTotal,
-      endOfLife: eolTotal,
-      grandTotal: rmTotal + mfgTotal + tptTotal + eolTotal,
+      totals: {
+        rawMaterials: rmTotal,
+        manufacturing: mfgTotal,
+        transport: tptTotal,
+        endOfLife: eolTotal,
+        grandTotal: rmTotal + mfgTotal + tptTotal + eolTotal,
+      },
+      details: {
+        rawMaterials: rmDetails,
+        manufacturing: mfgDetails,
+        transport: tptDetails,
+        endOfLife: eolDetails,
+      }
     };
   }, [watchedValues]);
 
@@ -264,8 +354,8 @@ export function CarbonConsultForm() {
   };
 
   return (
-    <div className="grid w-full grid-cols-1 gap-8 lg:grid-cols-5">
-      <div className="lg:col-span-3">
+    <div className="grid w-full grid-cols-1 gap-8 lg:grid-cols-3">
+      <div className="lg:col-span-2">
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
@@ -564,8 +654,8 @@ export function CarbonConsultForm() {
           </form>
         </Form>
       </div>
-      <div className="w-full print-container lg:col-span-2">
-          <TotalsDisplay totals={totals} />
+      <div className="w-full print-container lg:col-span-1">
+          <TotalsDisplay totals={totals} details={details} />
       </div>
     </div>
   );
