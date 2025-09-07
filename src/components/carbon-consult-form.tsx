@@ -147,7 +147,15 @@ const TotalsDisplay = ({
   ];
 
   const handlePrint = () => {
-    window.print();
+    const printableContent = document.getElementById('printable-content');
+    if (printableContent) {
+      const parent = printableContent.parentElement;
+      if (parent) {
+        parent.classList.add('printable-content');
+        window.print();
+        parent.classList.remove('printable-content');
+      }
+    }
   };
 
   return (
@@ -330,7 +338,7 @@ export function CarbonConsultForm() {
         onSubmit={form.handleSubmit(onSubmit)}
         className="grid w-full grid-cols-1 gap-8 lg:grid-cols-3"
       >
-        <div className="lg:col-span-2 print:col-span-3">
+        <div className="lg:col-span-2">
           <Tabs defaultValue="raw-materials" className="w-full">
             <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 print:hidden">
               <TabsTrigger value="raw-materials">

@@ -86,15 +86,18 @@
 }
 
 @layer utilities {
+  .printable-content {
+    display: none;
+  }
+  .print\:hidden {
+    display: none;
+  }
   @media print {
-    body > * {
+    body > :not(.printable-content) {
       display: none;
     }
-    body > #printable-content {
+    .printable-content {
       display: block;
-    }
-    .print\:hidden {
-      display: none;
     }
   }
 }
