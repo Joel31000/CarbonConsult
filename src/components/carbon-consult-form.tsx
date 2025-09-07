@@ -6,7 +6,6 @@ import {
   useFieldArray,
   useForm,
   useWatch,
-  type Control,
 } from "react-hook-form";
 import { z } from "zod";
 import {
@@ -17,9 +16,8 @@ import {
   Recycle,
   Trash2,
   Truck,
-  Wand2,
 } from "lucide-react";
-import React, { useEffect, useMemo, useState, useTransition } from "react";
+import React, { useMemo, useTransition } from "react";
 import {
   BarChart,
   CartesianGrid,
@@ -35,7 +33,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -56,20 +53,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getAiSuggestions, saveSubmission } from "@/lib/actions";
+import { saveSubmission } from "@/lib/actions";
 import { emissionFactors } from "@/lib/data";
-import { cn } from "@/lib/utils";
-import type { SuggestCarbonImprovementsInput } from "@/ai/flows/suggest-carbon-improvements";
 import { useToast } from "@/hooks/use-toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 const formSchema = z.object({
   rawMaterials: z.array(
@@ -185,10 +171,7 @@ const TotalsDisplay = ({
 
 export function CarbonConsultForm() {
   const { toast } = useToast();
-  const [isPending, startTransition] = useTransition();
   const [isSubmitPending, startSubmitTransition] = useTransition();
-  const [aiSuggestions, setAiSuggestions] = useState<string | null>(null);
-  const [isSuggestionDialogOpen, setIsSuggestionDialogOpen] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -260,57 +243,6 @@ export function CarbonConsultForm() {
       grandTotal: rmTotal + mfgTotal + tptTotal + eolTotal,
     };
   }, [watchedValues]);
-
-  const handleGetSuggestions = () => {
-    startTransition(async () => {
-      setAiSuggestions(null);
-      const formData = form.getValues();
-      const input: SuggestCarbonImprovementsInput = {
-        rawMaterials:
-          formData.rawMaterials
-            .map((item) => `${item.quantity}kg de ${item.material}`)
-            .join(", ") || "Aucune matière première spécifiée.",
-        manufacturing:
-          formData.manufacturing
-            .map((item) => `${item.duration} heures de ${item.process}`)
-            .join(", ") || "Aucun processus de fabrication spécifié.",
-        transport:
-          formData.transport
-            .map(
-              (item) =>
-                `${item.weight}t transportées sur ${item.distance}km par ${item.mode}`
-            )
-            .join(", ") || "Aucun transport spécifié.",
-        endOfLife:
-          formData.endOfLife
-            .map((item) => `${item.weight}kg gérés par ${item.method}`)
-            .join(", ") || "Aucun processus de fin de vie spécifié.",
-        usage: "Aucun détail d'utilisation spécifié.",
-      };
-
-      try {
-        const result = await getAiSuggestions(input);
-        if (result.success && result.suggestions) {
-          setAiSuggestions(result.suggestions);
-          setIsSuggestionDialogOpen(true);
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Échec de la suggestion de l'IA",
-            description: result.error || "Une erreur inattendue est survenue. Veuillez réessayer.",
-          });
-        }
-      } catch (error) {
-        console.error("Erreur lors de la récupération des suggestions de l'IA:", error);
-        toast({
-          variant: "destructive",
-          title: "Erreur de communication",
-          description:
-            "Impossible de contacter le service IA. Vérifiez votre connexion et la configuration de la clé API.",
-        });
-      }
-    });
-  };
 
   const onSubmit = (values: FormValues) => {
     startSubmitTransition(async () => {
@@ -622,23 +554,6 @@ export function CarbonConsultForm() {
                   </TabsContent>
               </div>
             </Tabs>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Wand2 className="h-5 w-5 text-accent" /> Suggestions de l'IA
-                </CardTitle>
-                <CardDescription>
-                  Cliquez sur le bouton pour obtenir des suggestions de l'IA sur la façon de réduire votre empreinte carbone.
-                </CardDescription>
-              </CardHeader>
-              <CardFooter className="border-t px-6 py-4">
-                <Button type="button" variant="outline" onClick={handleGetSuggestions} disabled={isPending}>
-                  {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                  Obtenir les suggestions de l'IA
-                </Button>
-              </CardFooter>
-            </Card>
             
             <div className="flex justify-end print:hidden">
                 <Button type="submit" disabled={isSubmitPending}>
@@ -652,22 +567,8 @@ export function CarbonConsultForm() {
       <div className="w-full print-container">
           <TotalsDisplay totals={totals} />
       </div>
-
-      <AlertDialog open={isSuggestionDialogOpen} onOpenChange={setIsSuggestionDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Wand2 className="h-5 w-5 text-accent" /> Suggestions de l'IA
-            </AlertDialogTitle>
-            <AlertDialogDescription className="prose prose-sm max-w-none whitespace-pre-wrap pt-4 font-body text-foreground">
-              {aiSuggestions}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setIsSuggestionDialogOpen(false)}>Fermer</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
+
+    
