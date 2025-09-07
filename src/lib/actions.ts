@@ -14,7 +14,7 @@ export async function saveSubmission(data: unknown) {
   console.log("Saving submission:", data);
   // In a real application, you would save this data to Firestore.
   await new Promise((resolve) => setTimeout(resolve, 1000));
-  return { success: true, message: "Submission saved successfully!" };
+  return { success: true, message: "Soumission enregistrée avec succès !" };
 }
 
 /**
@@ -30,7 +30,7 @@ export async function getAiSuggestions(input: SuggestCarbonImprovementsInput) {
     console.error("Error getting AI suggestions:", error);
     return {
       success: false,
-      error: "Failed to get suggestions from the AI model.",
+      error: "Échec de l'obtention des suggestions du modèle d'IA.",
     };
   }
 }

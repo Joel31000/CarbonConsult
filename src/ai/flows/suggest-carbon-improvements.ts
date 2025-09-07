@@ -12,16 +12,16 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const SuggestCarbonImprovementsInputSchema = z.object({
-  rawMaterials: z.string().describe('Details about raw materials used.'),
-  manufacturing: z.string().describe('Details about the manufacturing process.'),
-  transport: z.string().describe('Details about transportation methods.'),
-  usage: z.string().describe('Details about product usage.'),
-  endOfLife: z.string().describe('Details about the product end-of-life management.'),
+  rawMaterials: z.string().describe('Détails sur les matières premières utilisées.'),
+  manufacturing: z.string().describe('Détails sur le processus de fabrication.'),
+  transport: z.string().describe('Détails sur les méthodes de transport.'),
+  usage: z.string().describe('Détails sur l\'utilisation du produit.'),
+  endOfLife: z.string().describe('Détails sur la gestion de fin de vie du produit.'),
 });
 export type SuggestCarbonImprovementsInput = z.infer<typeof SuggestCarbonImprovementsInputSchema>;
 
 const SuggestCarbonImprovementsOutputSchema = z.object({
-  suggestions: z.string().describe('AI-powered suggestions for reducing the carbon footprint.'),
+  suggestions: z.string().describe('Suggestions basées sur l\'IA pour réduire l\'empreinte carbone.'),
 });
 export type SuggestCarbonImprovementsOutput = z.infer<typeof SuggestCarbonImprovementsOutputSchema>;
 
@@ -35,13 +35,13 @@ const prompt = ai.definePrompt({
   name: 'suggestCarbonImprovementsPrompt',
   input: {schema: SuggestCarbonImprovementsInputSchema},
   output: {schema: SuggestCarbonImprovementsOutputSchema},
-  prompt: `As a sustainability expert, review the following details of a supplier's tender submission and provide actionable suggestions for reducing their carbon footprint.
+  prompt: `En tant qu'expert en développement durable, examinez les détails suivants de la soumission d'un fournisseur et fournissez des suggestions concrètes pour réduire leur empreinte carbone.
 
-Raw Materials: {{{rawMaterials}}}
-Manufacturing: {{{manufacturing}}}
+Matières premières: {{{rawMaterials}}}
+Fabrication: {{{manufacturing}}}
 Transport: {{{transport}}}
-Usage: {{{usage}}}
-EndOfLife: {{{endOfLife}}}
+Utilisation: {{{usage}}}
+Fin de vie: {{{endOfLife}}}
 
 Suggestions:`,
 });

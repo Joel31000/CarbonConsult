@@ -65,27 +65,27 @@ import { useToast } from "@/hooks/use-toast";
 const formSchema = z.object({
   rawMaterials: z.array(
     z.object({
-      material: z.string().min(1, "Please select a material."),
-      quantity: z.coerce.number().min(0.01, "Quantity must be greater than 0."),
+      material: z.string().min(1, "Veuillez sélectionner un matériau."),
+      quantity: z.coerce.number().min(0.01, "La quantité doit être supérieure à 0."),
     })
   ),
   manufacturing: z.array(
     z.object({
-      process: z.string().min(1, "Please select a process."),
-      duration: z.coerce.number().min(0.01, "Duration must be greater than 0."),
+      process: z.string().min(1, "Veuillez sélectionner un processus."),
+      duration: z.coerce.number().min(0.01, "La durée doit être supérieure à 0."),
     })
   ),
   transport: z.array(
     z.object({
-      mode: z.string().min(1, "Please select a transport mode."),
-      distance: z.coerce.number().min(0.1, "Distance must be greater than 0."),
-      weight: z.coerce.number().min(0.01, "Weight must be greater than 0."),
+      mode: z.string().min(1, "Veuillez sélectionner un mode de transport."),
+      distance: z.coerce.number().min(0.1, "La distance doit être supérieure à 0."),
+      weight: z.coerce.number().min(0.01, "Le poids doit être supérieur à 0."),
     })
   ),
   endOfLife: z.array(
     z.object({
-      method: z.string().min(1, "Please select a method."),
-      weight: z.coerce.number().min(0.01, "Weight must be greater than 0."),
+      method: z.string().min(1, "Veuillez sélectionner une méthode."),
+      weight: z.coerce.number().min(0.01, "Le poids doit être supérieur à 0."),
     })
   ),
 });
@@ -138,21 +138,21 @@ const TotalsDisplay = ({
   };
 }) => {
   const chartData = [
-    { name: "Materials", co2e: totals.rawMaterials.toFixed(2) },
-    { name: "Mfg", co2e: totals.manufacturing.toFixed(2) },
+    { name: "Matériaux", co2e: totals.rawMaterials.toFixed(2) },
+    { name: "Fab.", co2e: totals.manufacturing.toFixed(2) },
     { name: "Transport", co2e: totals.transport.toFixed(2) },
-    { name: "EoL", co2e: totals.endOfLife.toFixed(2) },
+    { name: "FdF", co2e: totals.endOfLife.toFixed(2) },
   ];
 
   return (
     <Card className="sticky top-20">
       <CardHeader>
-        <CardTitle>Emission Summary</CardTitle>
-        <CardDescription>Total CO₂e emissions by category.</CardDescription>
+        <CardTitle>Résumé des émissions</CardTitle>
+        <CardDescription>Émissions totales de CO₂e par catégorie.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="text-center">
-          <p className="text-sm text-muted-foreground">Grand Total</p>
+          <p className="text-sm text-muted-foreground">Total général</p>
           <p className="text-4xl font-bold tracking-tighter">
             {totals.grandTotal.toFixed(2)}
           </p>
@@ -258,24 +258,24 @@ export function CarbonConsultForm() {
       const input: SuggestCarbonImprovementsInput = {
         rawMaterials:
           formData.rawMaterials
-            .map((item) => `${item.quantity}kg of ${item.material}`)
-            .join(", ") || "No raw materials specified.",
+            .map((item) => `${item.quantity}kg de ${item.material}`)
+            .join(", ") || "Aucune matière première spécifiée.",
         manufacturing:
           formData.manufacturing
-            .map((item) => `${item.duration} hours of ${item.process}`)
-            .join(", ") || "No manufacturing processes specified.",
+            .map((item) => `${item.duration} heures de ${item.process}`)
+            .join(", ") || "Aucun processus de fabrication spécifié.",
         transport:
           formData.transport
             .map(
               (item) =>
-                `${item.weight}t transported ${item.distance}km by ${item.mode}`
+                `${item.weight}t transportées sur ${item.distance}km par ${item.mode}`
             )
-            .join(", ") || "No transport specified.",
+            .join(", ") || "Aucun transport spécifié.",
         endOfLife:
           formData.endOfLife
-            .map((item) => `${item.weight}kg managed by ${item.method}`)
-            .join(", ") || "No end-of-life processes specified.",
-        usage: "No usage details specified.",
+            .map((item) => `${item.weight}kg gérés par ${item.method}`)
+            .join(", ") || "Aucun processus de fin de vie spécifié.",
+        usage: "Aucun détail d'utilisation spécifié.",
       };
 
       const result = await getAiSuggestions(input);
@@ -284,10 +284,10 @@ export function CarbonConsultForm() {
       } else {
         toast({
           variant: "destructive",
-          title: "AI Suggestion Failed",
+          title: "Échec de la suggestion de l'IA",
           description:
             result.error ||
-            "An unexpected error occurred. Please try again.",
+            "Une erreur inattendue est survenue. Veuillez réessayer.",
         });
       }
     });
@@ -298,15 +298,15 @@ export function CarbonConsultForm() {
       const result = await saveSubmission(values);
       if (result.success) {
         toast({
-          title: "Submission Saved",
-          description: "Your carbon footprint data has been saved.",
+          title: "Soumission enregistrée",
+          description: "Vos données d'empreinte carbone ont été enregistrées.",
         });
       } else {
         toast({
           variant: "destructive",
-          title: "Save Failed",
+          title: "Échec de l'enregistrement",
           description:
-            "There was an error saving your submission. Please try again.",
+            "Une erreur s'est produite lors de l'enregistrement de votre soumission. Veuillez réessayer.",
         });
       }
     });
@@ -322,23 +322,23 @@ export function CarbonConsultForm() {
           <Tabs defaultValue="raw-materials" className="w-full">
             <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
               <TabsTrigger value="raw-materials">
-                <Leaf className="mr-2 h-4 w-4" /> Raw Materials
+                <Leaf className="mr-2 h-4 w-4" /> Matières premières
               </TabsTrigger>
               <TabsTrigger value="manufacturing">
-                <Factory className="mr-2 h-4 w-4" /> Manufacturing
+                <Factory className="mr-2 h-4 w-4" /> Fabrication
               </TabsTrigger>
               <TabsTrigger value="transport">
                 <Truck className="mr-2 h-4 w-4" /> Transport
               </TabsTrigger>
               <TabsTrigger value="end-of-life">
-                <Recycle className="mr-2 h-4 w-4" /> End of Life
+                <Recycle className="mr-2 h-4 w-4" /> Fin de vie
               </TabsTrigger>
             </TabsList>
             
             <TabsContent value="raw-materials">
               <SectionCard
-                title="Raw Materials"
-                description="Specify the raw materials used in your product."
+                title="Matières premières"
+                description="Spécifiez les matières premières utilisées dans votre produit."
                 icon={Leaf}
                 actions={
                   <Button
@@ -347,7 +347,7 @@ export function CarbonConsultForm() {
                     size="sm"
                     onClick={() => rmAppend({ material: "", quantity: 0 })}
                   >
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add Material
+                    <PlusCircle className="mr-2 h-4 w-4" /> Ajouter un matériau
                   </Button>
                 }
               >
@@ -359,11 +359,11 @@ export function CarbonConsultForm() {
                         name={`rawMaterials.${index}.material`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Material</FormLabel>
+                            <FormLabel>Matériau</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Select a material" />
+                                  <SelectValue placeholder="Sélectionnez un matériau" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
@@ -379,9 +379,9 @@ export function CarbonConsultForm() {
                         name={`rawMaterials.${index}.quantity`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Quantity (kg)</FormLabel>
+                            <FormLabel>Quantité (kg)</FormLabel>
                             <FormControl>
-                              <Input type="number" placeholder="e.g., 100" {...field} />
+                              <Input type="number" placeholder="ex: 100" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -400,8 +400,8 @@ export function CarbonConsultForm() {
 
             <TabsContent value="manufacturing">
               <SectionCard
-                title="Manufacturing"
-                description="Add the processes involved in manufacturing."
+                title="Fabrication"
+                description="Ajoutez les processus impliqués dans la fabrication."
                 icon={Factory}
                 actions={
                   <Button
@@ -410,7 +410,7 @@ export function CarbonConsultForm() {
                     size="sm"
                     onClick={() => mfgAppend({ process: "", duration: 0 })}
                   >
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add Process
+                    <PlusCircle className="mr-2 h-4 w-4" /> Ajouter un processus
                   </Button>
                 }
               >
@@ -422,11 +422,11 @@ export function CarbonConsultForm() {
                         name={`manufacturing.${index}.process`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Process</FormLabel>
+                            <FormLabel>Processus</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Select a process" />
+                                  <SelectValue placeholder="Sélectionnez un processus" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
@@ -442,9 +442,9 @@ export function CarbonConsultForm() {
                         name={`manufacturing.${index}.duration`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Duration (hours)</FormLabel>
+                            <FormLabel>Durée (heures)</FormLabel>
                             <FormControl>
-                              <Input type="number" placeholder="e.g., 50" {...field} />
+                              <Input type="number" placeholder="ex: 50" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -464,7 +464,7 @@ export function CarbonConsultForm() {
             <TabsContent value="transport">
               <SectionCard
                 title="Transport"
-                description="Detail the transportation stages for your product."
+                description="Détaillez les étapes de transport de votre produit."
                 icon={Truck}
                 actions={
                   <Button
@@ -473,7 +473,7 @@ export function CarbonConsultForm() {
                     size="sm"
                     onClick={() => tptAppend({ mode: "", distance: 0, weight: 0 })}
                   >
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add Leg
+                    <PlusCircle className="mr-2 h-4 w-4" /> Ajouter une étape
                   </Button>
                 }
               >
@@ -489,7 +489,7 @@ export function CarbonConsultForm() {
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Select a mode" />
+                                  <SelectValue placeholder="Sélectionnez un mode" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
@@ -507,7 +507,7 @@ export function CarbonConsultForm() {
                           <FormItem>
                             <FormLabel>Distance (km)</FormLabel>
                             <FormControl>
-                              <Input type="number" placeholder="e.g., 500" {...field} />
+                              <Input type="number" placeholder="ex: 500" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -518,9 +518,9 @@ export function CarbonConsultForm() {
                         name={`transport.${index}.weight`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Weight (tonnes)</FormLabel>
+                            <FormLabel>Poids (tonnes)</FormLabel>
                             <FormControl>
-                              <Input type="number" placeholder="e.g., 10" {...field} />
+                              <Input type="number" placeholder="ex: 10" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -539,8 +539,8 @@ export function CarbonConsultForm() {
             
             <TabsContent value="end-of-life">
               <SectionCard
-                title="End of Life"
-                description="Describe the end-of-life treatment for the product."
+                title="Fin de vie"
+                description="Décrivez le traitement de fin de vie du produit."
                 icon={Recycle}
                 actions={
                   <Button
@@ -549,7 +549,7 @@ export function CarbonConsultForm() {
                     size="sm"
                     onClick={() => eolAppend({ method: "", weight: 0 })}
                   >
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add Method
+                    <PlusCircle className="mr-2 h-4 w-4" /> Ajouter une méthode
                   </Button>
                 }
               >
@@ -561,11 +561,11 @@ export function CarbonConsultForm() {
                         name={`endOfLife.${index}.method`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Method</FormLabel>
+                            <FormLabel>Méthode</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Select a method" />
+                                  <SelectValue placeholder="Sélectionnez une méthode" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
@@ -581,9 +581,9 @@ export function CarbonConsultForm() {
                         name={`endOfLife.${index}.weight`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Weight (kg)</FormLabel>
+                            <FormLabel>Poids (kg)</FormLabel>
                             <FormControl>
-                              <Input type="number" placeholder="e.g., 100" {...field} />
+                              <Input type="number" placeholder="ex: 100" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -604,17 +604,17 @@ export function CarbonConsultForm() {
           <Card className="mt-8">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Wand2 className="h-5 w-5 text-accent" /> AI-Powered Suggestions
+                <Wand2 className="h-5 w-5 text-accent" /> Suggestions de l'IA
               </CardTitle>
               <CardDescription>
-                Click the button to get AI-powered suggestions on how to reduce your carbon footprint.
+                Cliquez sur le bouton pour obtenir des suggestions de l'IA sur la façon de réduire votre empreinte carbone.
               </CardDescription>
             </CardHeader>
             <CardContent>
               {isPending && (
                 <div className="flex items-center justify-center rounded-md border border-dashed p-8">
                   <Loader2 className="mr-2 h-8 w-8 animate-spin text-muted-foreground" />
-                  <span className="text-muted-foreground">Generating suggestions...</span>
+                  <span className="text-muted-foreground">Génération des suggestions...</span>
                 </div>
               )}
               {aiSuggestions && !isPending && (
@@ -626,11 +626,11 @@ export function CarbonConsultForm() {
             <CardFooter className="flex-col items-start gap-4 border-t px-6 py-4 sm:flex-row sm:justify-between">
               <Button type="button" variant="outline" onClick={handleGetSuggestions} disabled={isPending}>
                 {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                Get AI Suggestions
+                Obtenir les suggestions de l'IA
               </Button>
               <Button type="submit" disabled={isSubmitPending}>
                 {isSubmitPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Submission
+                Enregistrer la soumission
               </Button>
             </CardFooter>
           </Card>

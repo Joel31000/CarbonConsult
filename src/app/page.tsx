@@ -15,10 +15,10 @@ export default function Home() {
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <div className="mx-auto grid w-full max-w-7xl gap-2">
           <h1 className="font-headline text-3xl font-semibold">
-            Supplier Carbon Footprint Submission
+            Soumission de l'empreinte carbone du fournisseur
           </h1>
           <p className="text-muted-foreground">
-            Complete the form below to calculate your product's carbon footprint and receive AI-powered suggestions for improvement.
+            Remplissez le formulaire ci-dessous pour calculer l'empreinte carbone de votre produit et recevoir des suggestions d'amélioration basées sur l'IA.
           </p>
         </div>
         <div className="mx-auto grid w-full max-w-7xl items-start">
@@ -26,7 +26,7 @@ export default function Home() {
         </div>
       </main>
       <footer className="border-t bg-card/50 py-4 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} CarbonConsult. All rights reserved.
+        © {new Date().getFullYear()} CarbonConsult. Tous droits réservés.
       </footer>
     </div>
   );
