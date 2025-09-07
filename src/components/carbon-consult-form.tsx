@@ -145,10 +145,6 @@ const TotalsDisplay = ({
     endOfLife: { name: string; co2e: number }[];
   };
 }) => {
-  const [chartMode, setChartMode] = useState<"aggregated" | "detailed">(
-    "aggregated"
-  );
-  
   const chartConfig = useMemo(() => {
     const config: ChartConfig = {};
     const colors = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
@@ -173,10 +169,6 @@ const TotalsDisplay = ({
   }, [details]);
 
 
-  const aggregatedChartData = [
-    { name: "Total", "Matériaux": totals.rawMaterials, "Fabrication": totals.manufacturing, "Transport": totals.transport, "Fin de vie": totals.endOfLife },
-  ];
-
   const detailedChartData = useMemo(() => {
     return [
       {
@@ -198,7 +190,6 @@ const TotalsDisplay = ({
     ]
   }, [details]);
   
-  const currentChartData = chartMode === 'aggregated' ? aggregatedChartData : detailedChartData;
 
   return (
     <Card className="sticky top-20">
@@ -208,9 +199,6 @@ const TotalsDisplay = ({
             <CardTitle>Résumé des émissions</CardTitle>
             <CardDescription>Émissions totales de CO₂e par catégorie.</CardDescription>
           </div>
-           <Button variant="outline" size="sm" onClick={() => setChartMode(chartMode === 'aggregated' ? 'detailed' : 'aggregated')}>
-            {chartMode === 'aggregated' ? 'Vue Détaillée' : 'Vue Agrégée'}
-          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -223,35 +211,17 @@ const TotalsDisplay = ({
         </div>
         <div className="h-64 w-full">
           <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
-            <BarChart accessibilityLayer data={currentChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }} layout={chartMode === 'aggregated' ? 'vertical' : 'horizontal'}>
+            <BarChart accessibilityLayer data={detailedChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              {chartMode === 'aggregated' ? (
-                <>
-                  <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="name" hide/>
-                </>
-              ) : (
-                <>
-                  <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis fontSize={12} tickLine={false} axisLine={false} unit="kg" tickFormatter={(value) => value.toFixed(0)} />
-                </>
-              )}
+              <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis fontSize={12} tickLine={false} axisLine={false} unit="kg" tickFormatter={(value) => value.toFixed(0)} />
               
               <RechartsTooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
               <Legend />
 
-              {chartMode === 'aggregated' ? (
-                <>
-                  <Bar dataKey="Matériaux" fill="hsl(var(--chart-1))" stackId="a" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Fabrication" fill="hsl(var(--chart-2))" stackId="a" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Transport" fill="hsl(var(--chart-3))" stackId="a" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Fin de vie" fill="hsl(var(--chart-4))" stackId="a" radius={[4, 4, 0, 0]} />
-                </>
-              ) : (
-                Object.keys(chartConfig).filter(key => !["Matériaux", "Fabrication", "Transport", "Fin de vie"].includes(key)).map((key) => (
-                    <Bar key={key} dataKey={key} fill={chartConfig[key].color} stackId="a" radius={[4, 4, 0, 0]} />
-                ))
-              )}
+              {Object.keys(chartConfig).filter(key => !["Matériaux", "Fabrication", "Transport", "Fin de vie"].includes(key)).map((key) => (
+                  <Bar key={key} dataKey={key} fill={chartConfig[key].color} stackId="a" radius={[4, 4, 0, 0]} />
+              ))}
             </BarChart>
           </ChartContainer>
         </div>
