@@ -19,14 +19,14 @@ import {
 } from "lucide-react";
 import React, { useMemo, useState, useTransition } from "react";
 import {
+  Bar,
   BarChart,
   CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
   XAxis,
   YAxis,
-  Tooltip as RechartsTooltip,
-  Bar,
-  ResponsiveContainer,
-  Legend,
 } from "recharts";
 
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import {
   Form,
   FormControl,
@@ -54,14 +59,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 import { saveSubmission } from "@/lib/actions";
 import { emissionFactors } from "@/lib/data";
-import { useToast } from "@/hooks/use-toast";
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
 
 const formSchema = z.object({
   rawMaterials: z.array(
@@ -174,10 +174,7 @@ const TotalsDisplay = ({
 
 
   const aggregatedChartData = [
-    { name: "Matériaux", "Matériaux": totals.rawMaterials },
-    { name: "Fabrication", "Fabrication": totals.manufacturing },
-    { name: "Transport", "Transport": totals.transport },
-    { name: "Fin de vie", "Fin de vie": totals.endOfLife },
+    { name: "Total", "Matériaux": totals.rawMaterials, "Fabrication": totals.manufacturing, "Transport": totals.transport, "Fin de vie": totals.endOfLife },
   ];
 
   const detailedChartData = useMemo(() => {
@@ -202,11 +199,6 @@ const TotalsDisplay = ({
   }, [details]);
   
   const currentChartData = chartMode === 'aggregated' ? aggregatedChartData : detailedChartData;
-  const bars = chartMode === 'aggregated' 
-    ? [{dataKey: "Matériaux", stackId: "a"}, {dataKey: "Fabrication", stackId: "a"}, {dataKey: "Transport", stackId: "a"}, {dataKey: "Fin de vie", stackId: "a"}]
-    : Object.keys(chartConfig)
-        .filter(key => !["Matériaux", "Fabrication", "Transport", "Fin de vie"].includes(key))
-        .map(key => ({ dataKey: key, stackId: "a" }));
 
   return (
     <Card className="sticky top-20">
@@ -231,19 +223,29 @@ const TotalsDisplay = ({
         </div>
         <div className="h-64 w-full">
           <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
-            <BarChart accessibilityLayer data={currentChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+            <BarChart accessibilityLayer data={currentChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }} layout={chartMode === 'aggregated' ? 'vertical' : 'horizontal'}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis fontSize={12} tickLine={false} axisLine={false} unit="kg" tickFormatter={(value) => value.toFixed(0)} />
+              {chartMode === 'aggregated' ? (
+                <>
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="name" hide/>
+                </>
+              ) : (
+                <>
+                  <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis fontSize={12} tickLine={false} axisLine={false} unit="kg" tickFormatter={(value) => value.toFixed(0)} />
+                </>
+              )}
+              
               <RechartsTooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
-              {chartMode === 'aggregated' && <Legend content={({ payload }) => null} />}
+              <Legend />
 
               {chartMode === 'aggregated' ? (
                 <>
-                  <Bar dataKey="Matériaux" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Fabrication" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Transport" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Fin de vie" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Matériaux" fill="hsl(var(--chart-1))" stackId="a" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Fabrication" fill="hsl(var(--chart-2))" stackId="a" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Transport" fill="hsl(var(--chart-3))" stackId="a" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Fin de vie" fill="hsl(var(--chart-4))" stackId="a" radius={[4, 4, 0, 0]} />
                 </>
               ) : (
                 Object.keys(chartConfig).filter(key => !["Matériaux", "Fabrication", "Transport", "Fin de vie"].includes(key)).map((key) => (
@@ -354,8 +356,8 @@ export function CarbonConsultForm() {
   };
 
   return (
-    <div className="grid w-full grid-cols-1 gap-8 lg:grid-cols-3">
-      <div className="lg:col-span-2">
+    <div className="grid w-full grid-cols-1 gap-8 lg:grid-cols-5">
+      <div className="lg:col-span-3">
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
@@ -654,11 +656,9 @@ export function CarbonConsultForm() {
           </form>
         </Form>
       </div>
-      <div className="w-full print-container lg:col-span-1">
+      <div className="w-full print-container lg:col-span-2">
           <TotalsDisplay totals={totals} details={details} />
       </div>
     </div>
   );
 }
-
-    
