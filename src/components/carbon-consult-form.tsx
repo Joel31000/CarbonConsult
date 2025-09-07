@@ -264,8 +264,8 @@ export function CarbonConsultForm() {
   };
 
   return (
-    <div className="grid w-full grid-cols-1 gap-8 lg:grid-cols-3">
-      <div className="lg:col-span-2">
+    <div className="grid w-full grid-cols-1 gap-8 lg:grid-cols-5">
+      <div className="lg:col-span-3">
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
@@ -564,7 +564,7 @@ export function CarbonConsultForm() {
           </form>
         </Form>
       </div>
-      <div className="w-full print-container">
+      <div className="w-full print-container lg:col-span-2">
           <TotalsDisplay totals={totals} />
       </div>
     </div>
