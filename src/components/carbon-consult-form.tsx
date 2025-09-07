@@ -325,334 +325,336 @@ export function CarbonConsultForm() {
   };
 
   return (
-    <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="grid w-full grid-cols-1 gap-8 lg:grid-cols-3"
-      >
-        <div className="lg:col-span-2">
-          <Tabs defaultValue="raw-materials" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 print:hidden">
-              <TabsTrigger value="raw-materials">
-                <Leaf className="mr-2 h-4 w-4" /> Matières premières
-              </TabsTrigger>
-              <TabsTrigger value="manufacturing">
-                <Factory className="mr-2 h-4 w-4" /> Fabrication
-              </TabsTrigger>
-              <TabsTrigger value="transport">
-                <Truck className="mr-2 h-4 w-4" /> Transport
-              </TabsTrigger>
-              <TabsTrigger value="end-of-life">
-                <Recycle className="mr-2 h-4 w-4" /> Fin de vie
-              </TabsTrigger>
-            </TabsList>
-            
-            <div className="print:hidden">
-                <TabsContent value="raw-materials">
-                  <SectionCard
-                    title="Matières premières"
-                    description="Spécifiez les matières premières utilisées dans votre produit."
-                    icon={Leaf}
-                    actions={
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => rmAppend({ material: "", quantity: 0 })}
-                      >
-                        <PlusCircle className="mr-2 h-4 w-4" /> Ajouter un matériau
-                      </Button>
-                    }
-                  >
-                    {rmFields.map((field, index) => (
-                      <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          <FormField
-                            control={form.control}
-                            name={`rawMaterials.${index}.material`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Matériau</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+    <div className="grid w-full grid-cols-1 gap-8 lg:grid-cols-3">
+      <div className="lg:col-span-2">
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex flex-col gap-8"
+          >
+            <Tabs defaultValue="raw-materials" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 print:hidden">
+                <TabsTrigger value="raw-materials">
+                  <Leaf className="mr-2 h-4 w-4" /> Matières premières
+                </TabsTrigger>
+                <TabsTrigger value="manufacturing">
+                  <Factory className="mr-2 h-4 w-4" /> Fabrication
+                </TabsTrigger>
+                <TabsTrigger value="transport">
+                  <Truck className="mr-2 h-4 w-4" /> Transport
+                </TabsTrigger>
+                <TabsTrigger value="end-of-life">
+                  <Recycle className="mr-2 h-4 w-4" /> Fin de vie
+                </TabsTrigger>
+              </TabsList>
+              
+              <div className="print:hidden">
+                  <TabsContent value="raw-materials">
+                    <SectionCard
+                      title="Matières premières"
+                      description="Spécifiez les matières premières utilisées dans votre produit."
+                      icon={Leaf}
+                      actions={
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => rmAppend({ material: "", quantity: 0 })}
+                        >
+                          <PlusCircle className="mr-2 h-4 w-4" /> Ajouter un matériau
+                        </Button>
+                      }
+                    >
+                      {rmFields.map((field, index) => (
+                        <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <FormField
+                              control={form.control}
+                              name={`rawMaterials.${index}.material`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Matériau</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Sélectionnez un matériau" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {materialOptions.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`rawMaterials.${index}.quantity`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Quantité (kg)</FormLabel>
                                   <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Sélectionnez un matériau" />
-                                    </SelectTrigger>
+                                    <Input type="number" placeholder="ex: 100" {...field} />
                                   </FormControl>
-                                  <SelectContent>
-                                    {materialOptions.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name={`rawMaterials.${index}.quantity`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Quantité (kg)</FormLabel>
-                                <FormControl>
-                                  <Input type="number" placeholder="ex: 100" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <div className="pt-8">
+                            <Button type="button" variant="ghost" size="icon" onClick={() => rmRemove(index)}>
+                              <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="pt-8">
-                          <Button type="button" variant="ghost" size="icon" onClick={() => rmRemove(index)}>
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </SectionCard>
-                </TabsContent>
+                      ))}
+                    </SectionCard>
+                  </TabsContent>
 
-                <TabsContent value="manufacturing">
-                  <SectionCard
-                    title="Fabrication"
-                    description="Ajoutez les processus impliqués dans la fabrication."
-                    icon={Factory}
-                    actions={
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => mfgAppend({ process: "", duration: 0 })}
-                      >
-                        <PlusCircle className="mr-2 h-4 w-4" /> Ajouter un processus
-                      </Button>
-                    }
-                  >
-                     {mfgFields.map((field, index) => (
-                      <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          <FormField
-                            control={form.control}
-                            name={`manufacturing.${index}.process`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Processus</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <TabsContent value="manufacturing">
+                    <SectionCard
+                      title="Fabrication"
+                      description="Ajoutez les processus impliqués dans la fabrication."
+                      icon={Factory}
+                      actions={
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => mfgAppend({ process: "", duration: 0 })}
+                        >
+                          <PlusCircle className="mr-2 h-4 w-4" /> Ajouter un processus
+                        </Button>
+                      }
+                    >
+                       {mfgFields.map((field, index) => (
+                        <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <FormField
+                              control={form.control}
+                              name={`manufacturing.${index}.process`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Processus</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Sélectionnez un processus" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {processOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`manufacturing.${index}.duration`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Durée (heures)</FormLabel>
                                   <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Sélectionnez un processus" />
-                                    </SelectTrigger>
+                                    <Input type="number" placeholder="ex: 50" {...field} />
                                   </FormControl>
-                                  <SelectContent>
-                                    {processOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name={`manufacturing.${index}.duration`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Durée (heures)</FormLabel>
-                                <FormControl>
-                                  <Input type="number" placeholder="ex: 50" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                           <div className="pt-8">
+                            <Button type="button" variant="ghost" size="icon" onClick={() => mfgRemove(index)}>
+                              <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </div>
                         </div>
-                         <div className="pt-8">
-                          <Button type="button" variant="ghost" size="icon" onClick={() => mfgRemove(index)}>
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </SectionCard>
-                </TabsContent>
+                      ))}
+                    </SectionCard>
+                  </TabsContent>
 
-                <TabsContent value="transport">
-                  <SectionCard
-                    title="Transport"
-                    description="Détaillez les étapes de transport de votre produit."
-                    icon={Truck}
-                    actions={
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => tptAppend({ mode: "", distance: 0, weight: 0 })}
-                      >
-                        <PlusCircle className="mr-2 h-4 w-4" /> Ajouter une étape
-                      </Button>
-                    }
-                  >
-                    {tptFields.map((field, index) => (
-                      <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                          <FormField
-                            control={form.control}
-                            name={`transport.${index}.mode`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Mode</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <TabsContent value="transport">
+                    <SectionCard
+                      title="Transport"
+                      description="Détaillez les étapes de transport de votre produit."
+                      icon={Truck}
+                      actions={
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => tptAppend({ mode: "", distance: 0, weight: 0 })}
+                        >
+                          <PlusCircle className="mr-2 h-4 w-4" /> Ajouter une étape
+                        </Button>
+                      }
+                    >
+                      {tptFields.map((field, index) => (
+                        <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                            <FormField
+                              control={form.control}
+                              name={`transport.${index}.mode`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Mode</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Sélectionnez un mode" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {transportOptions.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`transport.${index}.distance`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Distance (km)</FormLabel>
                                   <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Sélectionnez un mode" />
-                                    </SelectTrigger>
+                                    <Input type="number" placeholder="ex: 500" {...field} />
                                   </FormControl>
-                                  <SelectContent>
-                                    {transportOptions.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name={`transport.${index}.distance`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Distance (km)</FormLabel>
-                                <FormControl>
-                                  <Input type="number" placeholder="ex: 500" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name={`transport.${index}.weight`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Poids (tonnes)</FormLabel>
-                                <FormControl>
-                                  <Input type="number" placeholder="ex: 10" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                         <div className="pt-8">
-                          <Button type="button" variant="ghost" size="icon" onClick={() => tptRemove(index)}>
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </SectionCard>
-                </TabsContent>
-                
-                <TabsContent value="end-of-life">
-                  <SectionCard
-                    title="Fin de vie"
-                    description="Décrivez le traitement de fin de vie du produit."
-                    icon={Recycle}
-                    actions={
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => eolAppend({ method: "", weight: 0 })}
-                      >
-                        <PlusCircle className="mr-2 h-4 w-4" /> Ajouter une méthode
-                      </Button>
-                    }
-                  >
-                    {eolFields.map((field, index) => (
-                      <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          <FormField
-                            control={form.control}
-                            name={`endOfLife.${index}.method`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Méthode</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`transport.${index}.weight`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Poids (tonnes)</FormLabel>
                                   <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Sélectionnez une méthode" />
-                                    </SelectTrigger>
+                                    <Input type="number" placeholder="ex: 10" {...field} />
                                   </FormControl>
-                                  <SelectContent>
-                                    {eolOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name={`endOfLife.${index}.weight`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Poids (kg)</FormLabel>
-                                <FormControl>
-                                  <Input type="number" placeholder="ex: 100" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                           <div className="pt-8">
+                            <Button type="button" variant="ghost" size="icon" onClick={() => tptRemove(index)}>
+                              <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="pt-8">
-                          <Button type="button" variant="ghost" size="icon" onClick={() => eolRemove(index)}>
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
+                      ))}
+                    </SectionCard>
+                  </TabsContent>
+                  
+                  <TabsContent value="end-of-life">
+                    <SectionCard
+                      title="Fin de vie"
+                      description="Décrivez le traitement de fin de vie du produit."
+                      icon={Recycle}
+                      actions={
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => eolAppend({ method: "", weight: 0 })}
+                        >
+                          <PlusCircle className="mr-2 h-4 w-4" /> Ajouter une méthode
+                        </Button>
+                      }
+                    >
+                      {eolFields.map((field, index) => (
+                        <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <FormField
+                              control={form.control}
+                              name={`endOfLife.${index}.method`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Méthode</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Sélectionnez une méthode" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {eolOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`endOfLife.${index}.weight`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Poids (kg)</FormLabel>
+                                  <FormControl>
+                                    <Input type="number" placeholder="ex: 100" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <div className="pt-8">
+                            <Button type="button" variant="ghost" size="icon" onClick={() => eolRemove(index)}>
+                              <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </SectionCard>
-                </TabsContent>
-            </div>
-          </Tabs>
+                      ))}
+                    </SectionCard>
+                  </TabsContent>
+              </div>
+            </Tabs>
 
-          <Card className="mt-8 print:hidden">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wand2 className="h-5 w-5 text-accent" /> Suggestions de l'IA
-              </CardTitle>
-              <CardDescription>
-                Cliquez sur le bouton pour obtenir des suggestions de l'IA sur la façon de réduire votre empreinte carbone.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isPending && (
-                <div className="flex items-center justify-center rounded-md border border-dashed p-8">
-                  <Loader2 className="mr-2 h-8 w-8 animate-spin text-muted-foreground" />
-                  <span className="text-muted-foreground">Génération des suggestions...</span>
-                </div>
-              )}
-              {aiSuggestions && !isPending && (
-                <div className="prose prose-sm max-w-none rounded-md border bg-muted/50 p-4">
-                    <pre className="whitespace-pre-wrap bg-transparent p-0 font-body text-foreground"><p>{aiSuggestions}</p></pre>
-                </div>
-              )}
-            </CardContent>
-            <CardFooter className="flex-col items-start gap-4 border-t px-6 py-4 sm:flex-row sm:justify-between">
-              <Button type="button" variant="outline" onClick={handleGetSuggestions} disabled={isPending}>
-                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                Obtenir les suggestions de l'IA
-              </Button>
-              <Button type="submit" disabled={isSubmitPending}>
-                {isSubmitPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Enregistrer la soumission
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-        <div className="w-full">
-            <TotalsDisplay totals={totals} />
-        </div>
-      </form>
-    </Form>
+            <Card className="mt-8 print:hidden">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wand2 className="h-5 w-5 text-accent" /> Suggestions de l'IA
+                </CardTitle>
+                <CardDescription>
+                  Cliquez sur le bouton pour obtenir des suggestions de l'IA sur la façon de réduire votre empreinte carbone.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isPending && (
+                  <div className="flex items-center justify-center rounded-md border border-dashed p-8">
+                    <Loader2 className="mr-2 h-8 w-8 animate-spin text-muted-foreground" />
+                    <span className="text-muted-foreground">Génération des suggestions...</span>
+                  </div>
+                )}
+                {aiSuggestions && !isPending && (
+                  <div className="prose prose-sm max-w-none rounded-md border bg-muted/50 p-4">
+                      <pre className="whitespace-pre-wrap bg-transparent p-0 font-body text-foreground"><p>{aiSuggestions}</p></pre>
+                  </div>
+                )}
+              </CardContent>
+              <CardFooter className="flex-col items-start gap-4 border-t px-6 py-4 sm:flex-row sm:justify-between">
+                <Button type="button" variant="outline" onClick={handleGetSuggestions} disabled={isPending}>
+                  {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                  Obtenir les suggestions de l'IA
+                </Button>
+                <Button type="submit" disabled={isSubmitPending}>
+                  {isSubmitPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Enregistrer la soumission
+                </Button>
+              </CardFooter>
+            </Card>
+          </form>
+        </Form>
+      </div>
+      <div className="w-full">
+          <TotalsDisplay totals={totals} />
+      </div>
+    </div>
   );
 }
