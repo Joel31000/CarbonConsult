@@ -157,7 +157,7 @@ const TotalsDisplay = ({
           <CardTitle>Résumé des émissions</CardTitle>
           <CardDescription>Émissions totales de CO₂e par catégorie.</CardDescription>
         </div>
-        <Button variant="outline" size="icon" onClick={handlePrint} className="print:hidden">
+        <Button type="button" variant="outline" size="icon" onClick={handlePrint} className="print:hidden">
             <Printer className="h-4 w-4" />
             <span className="sr-only">Imprimer le bilan</span>
         </Button>
@@ -656,4 +656,3 @@ export function CarbonConsultForm() {
     </Form>
   );
 }
-

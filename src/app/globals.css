@@ -86,21 +86,16 @@
 }
 
 @layer utilities {
-  .print-only {
-    display: none;
-  }
   @media print {
-    body * {
-      visibility: hidden;
-    }
-    .print-container, .print-container * {
-      visibility: visible;
+    body {
+      -webkit-print-color-adjust: exact;
     }
     .print-container {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100%;
+       display: block;
+       position: absolute;
+       top: 0;
+       left: 0;
+       width: 100%;
     }
     .print\:hidden {
       display: none;
