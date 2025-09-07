@@ -280,7 +280,7 @@ export function CarbonConsultForm() {
       };
 
       const result = await getAiSuggestions(input);
-      if (result.success) {
+      if (result.success && result.suggestions) {
         setAiSuggestions(result.suggestions);
       } else {
         toast({
@@ -650,5 +650,3 @@ export function CarbonConsultForm() {
     </div>
   );
 }
-
-    
