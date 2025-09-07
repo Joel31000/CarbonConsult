@@ -150,7 +150,7 @@ const TotalsDisplay = ({
     { name: "Matériaux", co2e: totals.rawMaterials.toFixed(2) },
     { name: "Fab.", co2e: totals.manufacturing.toFixed(2) },
     { name: "Transport", co2e: totals.transport.toFixed(2) },
-    { name: "FdF", co2e: totals.endOfLife.toFixed(2) },
+    { name: "Fin de vie", co2e: totals.endOfLife.toFixed(2) },
   ];
 
   return (
@@ -663,4 +663,3 @@ export function CarbonConsultForm() {
     </div>
   );
 }
-
