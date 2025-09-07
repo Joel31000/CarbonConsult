@@ -623,7 +623,7 @@ export function CarbonConsultForm() {
                 )}
                 {aiSuggestions && !isPending && (
                   <div className="prose prose-sm max-w-none rounded-md border bg-muted/50 p-4">
-                      <pre className="whitespace-pre-wrap bg-transparent p-0 font-body text-foreground"><p>{aiSuggestions}</p></pre>
+                      <p className="whitespace-pre-wrap font-body text-foreground">{aiSuggestions}</p>
                   </div>
                 )}
               </CardContent>
@@ -650,3 +650,5 @@ export function CarbonConsultForm() {
     </div>
   );
 }
+
+    
