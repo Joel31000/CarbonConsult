@@ -87,31 +87,15 @@
 
 @layer utilities {
   @media print {
-    body > div:not(#printable-content) {
+    body > * {
       display: none;
     }
-    #printable-content {
+    body > #printable-content {
       display: block;
-      padding: 0;
-      margin: 0;
     }
     .print\:hidden {
       display: none;
     }
-    .print\:block {
-      display: block;
-    }
-    .print\:p-0 {
-        padding: 0;
-    }
-    .print\:col-span-3 {
-        grid-column: span 3 / span 3;
-    }
-    @page {
-      size: A4;
-      margin: 1cm;
-    }
   }
 }
-
     

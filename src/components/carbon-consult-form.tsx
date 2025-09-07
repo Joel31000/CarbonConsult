@@ -151,7 +151,7 @@ const TotalsDisplay = ({
   };
 
   return (
-    <Card className="sticky top-20" id="printable-summary">
+    <Card className="sticky top-20" id="printable-content">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Résumé des émissions</CardTitle>
@@ -657,4 +657,3 @@ export function CarbonConsultForm() {
   );
 }
 
-    
