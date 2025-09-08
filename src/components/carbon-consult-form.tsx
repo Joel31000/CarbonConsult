@@ -642,16 +642,16 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                   )}
               />
           </SectionCard>
-
-          <div className="flex justify-end print:hidden">
-              <Button type="submit" disabled={isSubmitPending}>
-                {isSubmitPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Enregistrer la soumission
-              </Button>
-          </div>
         </div>
-        <div className="w-full print-container lg:col-span-1">
+
+        <div className="w-full print-container lg:col-span-1 flex flex-col gap-8">
             <TotalsDisplay totals={totals} details={details} consultationLabel={consultationLabel} />
+            <div className="flex justify-end print:hidden">
+                <Button type="submit" disabled={isSubmitPending}>
+                  {isSubmitPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Enregistrer la soumission
+                </Button>
+            </div>
         </div>
       </form>
     </Form>
