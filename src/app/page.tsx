@@ -11,14 +11,16 @@ import { Download, HelpCircle, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export default function Home() {
   const [isExporting, setIsExporting] = useState(false);
+  const [consultationLabel, setConsultationLabel] = useState('');
 
   const handleExportToPDF = async () => {
     setIsExporting(true);
@@ -110,13 +112,23 @@ export default function Home() {
         </div>
       </header>
       <main id="printable-area" className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        <div className="mx-auto grid w-full max-w-7xl gap-2 print:hidden">
-          <h1 className="font-headline text-3xl font-semibold">
+        <div className="mx-auto grid w-full max-w-7xl gap-4">
+          <div className="grid w-full max-w-sm items-center gap-1.5 print:hidden">
+            <Label htmlFor="consultation-label">Libellé consultation</Label>
+            <Input 
+              id="consultation-label" 
+              type="text" 
+              placeholder="Ex: Appel d'offres Mairie de Paris" 
+              value={consultationLabel}
+              onChange={(e) => setConsultationLabel(e.target.value)}
+            />
+          </div>
+          <h1 className="font-headline text-3xl font-semibold print:hidden">
             Données d'Entrée
           </h1>
         </div>
         <div className="mx-auto grid w-full max-w-7xl items-start">
-          <CarbonConsultForm />
+          <CarbonConsultForm consultationLabel={consultationLabel} />
         </div>
       </main>
       <footer className="border-t border-border/40 bg-background/95 py-4 text-center text-sm text-muted-foreground print:hidden">

@@ -128,9 +128,11 @@ function SectionCard({
 }
 
 const TotalsDisplay = ({
+  consultationLabel,
   totals,
   details,
 }: {
+  consultationLabel: string;
   totals: {
     rawMaterials: number;
     manufacturing: number;
@@ -159,11 +161,6 @@ const TotalsDisplay = ({
         colorIndex++;
       }
     });
-
-    config["Matériaux"] = { label: "Matériaux", color: "hsl(var(--chart-1))"};
-    config["Fabrication"] = { label: "Fabrication", color: "hsl(var(--chart-2))"};
-    config["Transport"] = { label: "Transport", color: "hsl(var(--chart-3))"};
-    config["Fin de vie"] = { label: "Fin de vie", color: "hsl(var(--chart-4))"};
 
     return config;
   }, [details]);
@@ -197,7 +194,9 @@ const TotalsDisplay = ({
         <div className="flex justify-between items-center">
           <div className="space-y-1.5">
             <CardTitle>Résumé des émissions</CardTitle>
-            <CardDescription>Émissions totales de CO₂e par catégorie.</CardDescription>
+            {consultationLabel && (
+              <CardDescription>{consultationLabel}</CardDescription>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -217,10 +216,10 @@ const TotalsDisplay = ({
               <YAxis fontSize={12} tickLine={false} axisLine={false} unit="kg" tickFormatter={(value) => value.toFixed(0)} />
               
               <RechartsTooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
-              <Legend />
+              <Legend wrapperStyle={{fontSize: "0.8rem"}} />
 
-              {Object.keys(chartConfig).filter(key => !["Matériaux", "Fabrication", "Transport", "Fin de vie"].includes(key)).map((key) => (
-                  <Bar key={key} dataKey={key} fill={chartConfig[key].color} stackId="a" radius={[4, 4, 0, 0]} />
+              {Object.keys(chartConfig).map((key) => (
+                  <Bar key={key} dataKey={key} fill={chartConfig[key]?.color || '#8884d8'} stackId="a" radius={[4, 4, 0, 0]} />
               ))}
             </BarChart>
           </ChartContainer>
@@ -230,7 +229,7 @@ const TotalsDisplay = ({
   );
 };
 
-export function CarbonConsultForm() {
+export function CarbonConsultForm({ consultationLabel }: { consultationLabel: string }) {
   const { toast } = useToast();
   const [isSubmitPending, startSubmitTransition] = useTransition();
 
@@ -326,8 +325,8 @@ export function CarbonConsultForm() {
   };
 
   return (
-    <div className="grid w-full grid-cols-1 gap-8 lg:grid-cols-5">
-      <div className="lg:col-span-3">
+    <div className="grid w-full grid-cols-1 gap-8 lg:grid-cols-3">
+      <div className="lg:col-span-2">
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
@@ -626,8 +625,8 @@ export function CarbonConsultForm() {
           </form>
         </Form>
       </div>
-      <div className="w-full print-container lg:col-span-2">
-          <TotalsDisplay totals={totals} details={details} />
+      <div className="w-full print-container lg:col-span-1">
+          <TotalsDisplay totals={totals} details={details} consultationLabel={consultationLabel} />
       </div>
     </div>
   );
