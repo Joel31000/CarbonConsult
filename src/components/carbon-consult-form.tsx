@@ -659,5 +659,3 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </div>
   );
 }
-
-    
