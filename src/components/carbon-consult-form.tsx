@@ -16,6 +16,7 @@ import {
   Recycle,
   Trash2,
   Truck,
+  MessageSquare,
 } from "lucide-react";
 import React, { useMemo, useState, useTransition } from "react";
 import {
@@ -59,6 +60,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { saveSubmission } from "@/lib/actions";
 import { emissionFactors } from "@/lib/data";
@@ -89,6 +91,7 @@ const formSchema = z.object({
       weight: z.coerce.number().min(0.01, "Le poids doit être supérieur à 0."),
     })
   ),
+  explanatoryComments: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -240,6 +243,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
       manufacturing: [],
       transport: [],
       endOfLife: [],
+      explanatoryComments: "",
     },
   });
 
@@ -616,6 +620,30 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
               </div>
             </Tabs>
             
+            <SectionCard
+                title="Commentaires explicatifs"
+                description="Ajoutez des commentaires, des hypothèses ou toute autre information pertinente."
+                icon={MessageSquare}
+                actions={<></>}
+            >
+                <FormField
+                    control={form.control}
+                    name="explanatoryComments"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormControl>
+                                <Textarea
+                                    placeholder="Saisissez vos commentaires ici..."
+                                    className="min-h-[120px]"
+                                    {...field}
+                                />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </SectionCard>
+
             <div className="flex justify-end print:hidden">
                 <Button type="submit" disabled={isSubmitPending}>
                   {isSubmitPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -631,3 +659,5 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </div>
   );
 }
+
+    
