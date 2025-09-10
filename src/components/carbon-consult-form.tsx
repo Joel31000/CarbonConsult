@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -344,62 +345,96 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
 
   const { totals, details } = useMemo(() => calculateEmissions(watchedValues as FormValues), [watchedValues]);
 
-  const handleExportToCSV = () => {
+  const handleExportToExcel = () => {
     const data = form.getValues();
     const { totals: calculatedTotals, details: calculatedDetails } = calculateEmissions(data);
     
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += `Libellé Consultation,"${consultationLabel || 'N/A'}"\n\n`;
-    csvContent += "Catégorie,Item,Détail 1,Valeur 1,Détail 2,Valeur 2,kg CO₂e\n";
+    const thStyle = 'background-color: #f2f2f2; font-weight: bold; padding: 8px; border: 1px solid #ddd;';
+    const tdStyle = 'padding: 8px; border: 1px solid #ddd; text-align: left;';
+    const numStyle = 'padding: 8px; border: 1px solid #ddd; text-align: right;';
 
-    const escapeCSV = (str: string | number) => `"${String(str).replace(/"/g, '""')}"`;
+    let tableHtml = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head><meta charset='UTF-8'><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Bilan Carbone</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+        <style>
+            table, th, td { border-collapse: collapse; }
+            .num { mso-number-format:"0.00"; }
+        </style>
+        </head>
+        <body>
+          <table>
+            <thead>
+              <tr>
+                <th style="${thStyle}">Rubriques</th>
+                <th style="${thStyle}">Méthodes</th>
+                <th style="${thStyle}">Quantité (kg)</th>
+                <th style="${thStyle}">Durée (heures)</th>
+                <th style="${thStyle}">Distance (km)</th>
+                <th style="${thStyle}">Poids (tonnes)</th>
+                <th style="${thStyle}">Kg CO²e</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
 
-    // Matières premières
-    data.rawMaterials?.forEach(item => {
-        const detail = calculatedDetails.rawMaterials.find(d => d.name === item.material);
-        csvContent += `Matières premières,${escapeCSV(item.material)},Quantité (kg),${escapeCSV(item.quantity)},,,${escapeCSV(detail?.co2e.toFixed(2) || 0)}\n`;
-    });
-    csvContent += `,Sous-total Matières premières,,,,,,${escapeCSV(calculatedTotals.rawMaterials.toFixed(2))}\n\n`;
-
-    // Fabrication
-    data.manufacturing?.forEach(item => {
-        const detail = calculatedDetails.manufacturing.find(d => d.name === item.process);
-        csvContent += `Fabrication,${escapeCSV(item.process)},Durée (heures),${escapeCSV(item.duration)},,,${escapeCSV(detail?.co2e.toFixed(2) || 0)}\n`;
-    });
-    csvContent += `,Sous-total Fabrication,,,,,,${escapeCSV(calculatedTotals.manufacturing.toFixed(2))}\n\n`;
+    const addRow = (rubrique: string, item: any, co2e: number) => {
+        tableHtml += `
+            <tr>
+                <td style="${tdStyle}">${rubrique}</td>
+                <td style="${tdStyle}">${item.material || item.process || item.mode || item.method}</td>
+                <td style="${numStyle}" class="num">${item.quantity || item.weight && !item.distance ? item.weight.toFixed(2) : ''}</td>
+                <td style="${numStyle}" class="num">${item.duration ? item.duration.toFixed(2) : ''}</td>
+                <td style="${numStyle}" class="num">${item.distance ? item.distance.toFixed(2) : ''}</td>
+                <td style="${numStyle}" class="num">${item.distance ? item.weight.toFixed(2) : ''}</td>
+                <td style="${numStyle}" class="num">${co2e.toFixed(2)}</td>
+            </tr>
+        `;
+    };
     
-    // Mise en œuvre
-    data.implementation?.forEach(item => {
-        const detail = calculatedDetails.implementation.find(d => d.name === item.process);
-        csvContent += `Mise en œuvre,${escapeCSV(item.process)},Durée (heures),${escapeCSV(item.duration)},,,${escapeCSV(detail?.co2e.toFixed(2) || 0)}\n`;
+    data.rawMaterials?.forEach((item, index) => {
+        const co2e = calculatedDetails.rawMaterials.find(d => d.name === item.material)?.co2e || 0;
+        addRow(index === 0 ? 'Matières premières' : '', item, co2e);
     });
-    csvContent += `,Sous-total Mise en œuvre,,,,,,${escapeCSV(calculatedTotals.implementation.toFixed(2))}\n\n`;
 
-    // Transport
-    data.transport?.forEach(item => {
-        const detail = calculatedDetails.transport.find(d => d.name === item.mode);
-        csvContent += `Transport,${escapeCSV(item.mode)},Distance (km),${escapeCSV(item.distance)},Poids (tonnes),${escapeCSV(item.weight)},${escapeCSV(detail?.co2e.toFixed(2) || 0)}\n`;
+    data.manufacturing?.forEach((item, index) => {
+        const co2e = calculatedDetails.manufacturing.find(d => d.name === item.process)?.co2e || 0;
+        addRow(index === 0 ? 'Fabrication' : '', item, co2e);
     });
-    csvContent += `,Sous-total Transport,,,,,,${escapeCSV(calculatedTotals.transport.toFixed(2))}\n\n`;
 
-    // Fin de vie
-    data.endOfLife?.forEach(item => {
-        const detail = calculatedDetails.endOfLife.find(d => d.name === item.method);
-        csvContent += `Fin de vie,${escapeCSV(item.method)},Poids (kg),${escapeCSV(item.weight)},,,${escapeCSV(detail?.co2e.toFixed(2) || 0)}\n`;
+    data.implementation?.forEach((item, index) => {
+        const co2e = calculatedDetails.implementation.find(d => d.name === item.process)?.co2e || 0;
+        addRow(index === 0 ? 'Mise en œuvre' : '', item, co2e);
     });
-    csvContent += `,Sous-total Fin de vie,,,,,,${escapeCSV(calculatedTotals.endOfLife.toFixed(2))}\n\n`;
-    
-    // Total général
-    csvContent += `TOTAL GÉNÉRAL,,,,,,${escapeCSV(calculatedTotals.grandTotal.toFixed(2))}\n\n`;
 
-    // Commentaires
-    csvContent += "Commentaires explicatifs\n";
-    csvContent += `"${data.explanatoryComments || ''}"\n`;
+    data.transport?.forEach((item, index) => {
+        const co2e = calculatedDetails.transport.find(d => d.name === item.mode)?.co2e || 0;
+        addRow(index === 0 ? 'Transport' : '', item, co2e);
+    });
 
-    const encodedUri = encodeURI(csvContent);
+    data.endOfLife?.forEach((item, index) => {
+        const co2e = calculatedDetails.endOfLife.find(d => d.name === item.method)?.co2e || 0;
+        addRow(index === 0 ? 'Fin de vie' : '', item, co2e);
+    });
+
+    // Total row
+    tableHtml += `
+            <tr>
+                <td colspan="6" style="${thStyle}">Total</td>
+                <td style="${thStyle} text-align: right;" class="num">${calculatedTotals.grandTotal.toFixed(2)}</td>
+            </tr>
+    `;
+
+    tableHtml += `
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob([tableHtml], { type: 'application/vnd.ms-excel' });
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `bilan_carbone_${consultationLabel.replace(/ /g, '_') || 'export'}.csv`);
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `bilan_carbone_${consultationLabel.replace(/ /g, '_') || 'export'}.xls`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -819,9 +854,9 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         <div className="w-full print-container lg:col-span-1 flex flex-col gap-8">
             <TotalsDisplay totals={totals} details={details} consultationLabel={consultationLabel} />
             <div className="flex flex-col sm:flex-row justify-end gap-2 print:hidden">
-                <Button type="button" variant="outline" onClick={handleExportToCSV}>
+                <Button type="button" variant="outline" onClick={handleExportToExcel}>
                   <FileSpreadsheet className="mr-2 h-4 w-4" />
-                  Générer le bilan
+                  Générer le bilan (XLS)
                 </Button>
                 <Button type="submit" disabled={isSubmitPending}>
                   {isSubmitPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -833,3 +868,5 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </Form>
   );
 }
+
+    
