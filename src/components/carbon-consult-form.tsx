@@ -17,7 +17,7 @@ import {
   Truck,
   MessageSquare,
 } from "lucide-react";
-import { Construction } from "@/components/icons";
+import { Construction, FileSpreadsheet } from "@/components/icons";
 import React, { useMemo, useState, useTransition } from "react";
 import {
   Bar,
@@ -165,7 +165,7 @@ const TotalsDisplay = ({
     let colorIndex = 0;
     
     Object.values(details).flat().forEach(item => {
-      if (!config[item.name]) {
+      if (item.name && !config[item.name]) {
         config[item.name] = {
           label: item.name,
           color: colors[colorIndex % colors.length]
@@ -179,7 +179,7 @@ const TotalsDisplay = ({
 
 
   const detailedChartData = useMemo(() => {
-    return [
+    const data = [
       {
         name: "Matériaux",
         ...details.rawMaterials.reduce((acc, item) => ({ ...acc, [item.name]: item.co2e }), {})
@@ -200,7 +200,8 @@ const TotalsDisplay = ({
         name: "Fin de vie",
         ...details.endOfLife.reduce((acc, item) => ({ ...acc, [item.name]: item.co2e }), {})
       },
-    ]
+    ];
+    return data.filter(d => Object.keys(d).length > 1);
   }, [details]);
   
 
@@ -225,20 +226,26 @@ const TotalsDisplay = ({
           <p className="text-sm text-muted-foreground">kg CO₂e</p>
         </div>
         <div className="h-64 w-full">
-          <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
-            <BarChart accessibilityLayer data={detailedChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis fontSize={12} tickLine={false} axisLine={false} unit="kg" tickFormatter={(value) => value.toFixed(0)} />
-              
-              <RechartsTooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
-              <Legend wrapperStyle={{fontSize: "0.8rem"}} />
+          {detailedChartData.length > 0 ? (
+            <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
+              <BarChart accessibilityLayer data={detailedChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis fontSize={12} tickLine={false} axisLine={false} unit="kg" tickFormatter={(value) => value.toFixed(0)} />
+                
+                <RechartsTooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
+                <Legend wrapperStyle={{fontSize: "0.8rem"}} />
 
-              {Object.keys(chartConfig).map((key) => (
-                  <Bar key={key} dataKey={key} fill={chartConfig[key]?.color || '#8884d8'} stackId="a" radius={[4, 4, 0, 0]} />
-              ))}
-            </BarChart>
-          </ChartContainer>
+                {Object.keys(chartConfig).map((key) => (
+                    <Bar key={key} dataKey={key} fill={chartConfig[key]?.color || '#8884d8'} stackId="a" radius={[4, 4, 0, 0]} />
+                ))}
+              </BarChart>
+            </ChartContainer>
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              Aucune donnée à afficher.
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -252,7 +259,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      rawMaterials: [{ material: "", quantity: 0 }],
+      rawMaterials: [],
       manufacturing: [],
       implementation: [],
       transport: [],
@@ -335,6 +342,72 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     };
   }, [watchedValues]);
 
+  const handleExportToCSV = () => {
+    const data = form.getValues();
+    const { totals: calculatedTotals, details: calculatedDetails } = totals;
+    
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += `Libellé Consultation,"${consultationLabel || 'N/A'}"\n\n`;
+    csvContent += "Catégorie,Item,Détail 1,Valeur 1,Détail 2,Valeur 2,kg CO₂e\n";
+
+    const escapeCSV = (str: string | number) => `"${String(str).replace(/"/g, '""')}"`;
+
+    // Matières premières
+    data.rawMaterials?.forEach(item => {
+        const detail = calculatedDetails.rawMaterials.find(d => d.name === item.material);
+        csvContent += `Matières premières,${escapeCSV(item.material)},Quantité (kg),${escapeCSV(item.quantity)},,,${escapeCSV(detail?.co2e.toFixed(2) || 0)}\n`;
+    });
+    csvContent += `,Sous-total Matières premières,,,,,,${escapeCSV(calculatedTotals.rawMaterials.toFixed(2))}\n\n`;
+
+    // Fabrication
+    data.manufacturing?.forEach(item => {
+        const detail = calculatedDetails.manufacturing.find(d => d.name === item.process);
+        csvContent += `Fabrication,${escapeCSV(item.process)},Durée (heures),${escapeCSV(item.duration)},,,${escapeCSV(detail?.co2e.toFixed(2) || 0)}\n`;
+    });
+    csvContent += `,Sous-total Fabrication,,,,,,${escapeCSV(calculatedTotals.manufacturing.toFixed(2))}\n\n`;
+    
+    // Mise en œuvre
+    data.implementation?.forEach(item => {
+        const detail = calculatedDetails.implementation.find(d => d.name === item.process);
+        csvContent += `Mise en œuvre,${escapeCSV(item.process)},Durée (heures),${escapeCSV(item.duration)},,,${escapeCSV(detail?.co2e.toFixed(2) || 0)}\n`;
+    });
+    csvContent += `,Sous-total Mise en œuvre,,,,,,${escapeCSV(calculatedTotals.implementation.toFixed(2))}\n\n`;
+
+    // Transport
+    data.transport?.forEach(item => {
+        const detail = calculatedDetails.transport.find(d => d.name === item.mode);
+        csvContent += `Transport,${escapeCSV(item.mode)},Distance (km),${escapeCSV(item.distance)},Poids (tonnes),${escapeCSV(item.weight)},${escapeCSV(detail?.co2e.toFixed(2) || 0)}\n`;
+    });
+    csvContent += `,Sous-total Transport,,,,,,${escapeCSV(calculatedTotals.transport.toFixed(2))}\n\n`;
+
+    // Fin de vie
+    data.endOfLife?.forEach(item => {
+        const detail = calculatedDetails.endOfLife.find(d => d.name === item.method);
+        csvContent += `Fin de vie,${escapeCSV(item.method)},Poids (kg),${escapeCSV(item.weight)},,,${escapeCSV(detail?.co2e.toFixed(2) || 0)}\n`;
+    });
+    csvContent += `,Sous-total Fin de vie,,,,,,${escapeCSV(calculatedTotals.endOfLife.toFixed(2))}\n\n`;
+    
+    // Total général
+    csvContent += `TOTAL GÉNÉRAL,,,,,,${escapeCSV(calculatedTotals.grandTotal.toFixed(2))}\n\n`;
+
+    // Commentaires
+    csvContent += "Commentaires explicatifs\n";
+    csvContent += `"${data.explanatoryComments || ''}"\n`;
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `bilan_carbone_${consultationLabel.replace(/ /g, '_') || 'export'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+        title: "Exportation réussie",
+        description: "Le fichier du bilan carbone a été téléchargé.",
+    });
+  };
+
   const onSubmit = (values: FormValues) => {
     startSubmitTransition(async () => {
       const result = await saveSubmission(values);
@@ -397,6 +470,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                       </Button>
                     }
                   >
+                    {rmFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucun matériau ajouté.</p>}
                     {rmFields.map((field, index) => (
                       <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -460,6 +534,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                       </Button>
                     }
                   >
+                      {mfgFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucun processus ajouté.</p>}
                       {mfgFields.map((field, index) => (
                       <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -523,6 +598,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                       </Button>
                     }
                   >
+                    {implFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucun processus ajouté.</p>}
                     {implFields.map((field, index) => (
                       <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -586,6 +662,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                       </Button>
                     }
                   >
+                    {tptFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucune étape de transport ajoutée.</p>}
                     {tptFields.map((field, index) => (
                       <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -662,6 +739,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                       </Button>
                     }
                   >
+                    {eolFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucune méthode ajoutée.</p>}
                     {eolFields.map((field, index) => (
                       <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -738,7 +816,11 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
 
         <div className="w-full print-container lg:col-span-1 flex flex-col gap-8">
             <TotalsDisplay totals={totals} details={details} consultationLabel={consultationLabel} />
-            <div className="flex justify-end print:hidden">
+            <div className="flex flex-col sm:flex-row justify-end gap-2 print:hidden">
+                <Button type="button" variant="outline" onClick={handleExportToCSV}>
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  Générer le bilan
+                </Button>
                 <Button type="submit" disabled={isSubmitPending}>
                   {isSubmitPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Enregistrer la soumission
