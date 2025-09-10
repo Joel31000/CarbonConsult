@@ -71,6 +71,7 @@ const formSchema = z.object({
     z.object({
       material: z.string().min(1, "Veuillez sélectionner un matériau."),
       quantity: z.coerce.number().min(0.01, "La quantité doit être supérieure à 0."),
+      concreteType: z.string().optional(),
     })
   ),
   manufacturing: z.array(
@@ -104,6 +105,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const materialOptions = emissionFactors.materials.map((m) => m.name);
+const concreteOptions = emissionFactors.concrete.map((c) => c.name);
 const processOptions = emissionFactors.manufacturing.map((p) => p.name);
 const implementationOptions = emissionFactors.implementation.map((i) => i.name);
 const transportOptions = emissionFactors.transport.map((t) => t.name);
@@ -291,11 +293,22 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
   });
 
   const watchedValues = useWatch({ control: form.control });
+  const watchedRawMaterials = useWatch({ control: form.control, name: "rawMaterials" });
 
   const calculateEmissions = (values: FormValues) => {
     const rmDetails = values.rawMaterials?.map(item => {
-      const factor = emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
-      return { name: item.material || "Inconnu", co2e: (item.quantity || 0) * factor };
+      let factor = 0;
+      let name = item.material || "Inconnu";
+      
+      if (item.material === "Béton" && item.concreteType) {
+        const concreteFactor = emissionFactors.concrete.find(c => c.name === item.concreteType)?.factor || 0;
+        factor = concreteFactor;
+        name = item.concreteType;
+      } else {
+        factor = emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
+      }
+      
+      return { name, co2e: (item.quantity || 0) * factor };
     }).filter(item => item.co2e > 0) || [];
     
     const mfgDetails = values.manufacturing?.map(item => {
@@ -388,10 +401,15 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         const distance = !isNaN(dist) && item.distance !== undefined ? dist.toFixed(2) : '';
         const weightTonnes = !isNaN(wKg) && item.weight !== undefined && item.distance !== undefined ? wKg.toFixed(2) : '';
 
+        let methodName = item.material || item.process || item.mode || item.method;
+        if (item.material === "Béton" && item.concreteType) {
+          methodName = item.concreteType;
+        }
+
         tableHtml += `
             <tr>
                 <td style="${tdStyle}">${rubrique}</td>
-                <td style="${tdStyle}">${item.material || item.process || item.mode || item.method}</td>
+                <td style="${tdStyle}">${methodName}</td>
                 <td style="${numStyle}" class="num">${quantityKg}</td>
                 <td style="${numStyle}" class="num">${duration}</td>
                 <td style="${numStyle}" class="num">${distance}</td>
@@ -402,7 +420,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     };
     
     data.rawMaterials?.forEach((item, index) => {
-        const co2e = calculatedDetails.rawMaterials.find(d => d.name === item.material)?.co2e || 0;
+        const co2e = calculatedDetails.rawMaterials.find(d => d.name === (item.material === "Béton" && item.concreteType ? item.concreteType : item.material))?.co2e || 0;
         addRow(index === 0 ? 'Matières premières' : '', item, co2e);
     });
 
@@ -511,7 +529,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => rmAppend({ material: "", quantity: 0 })}
+                        onClick={() => rmAppend({ material: "", quantity: 0, concreteType: "" })}
                       >
                         <PlusCircle className="mr-2 h-4 w-4" /> Ajouter un matériau
                       </Button>
@@ -519,7 +537,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                   >
                     {rmFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucun matériau ajouté.</p>}
                     {rmFields.map((field, index) => (
-                      <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
+                      <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <FormField
                             control={form.control}
@@ -541,7 +559,29 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                               </FormItem>
                             )}
                           />
-                          <FormField
+                          {watchedRawMaterials[index]?.material === 'Béton' && (
+                            <FormField
+                              control={form.control}
+                              name={`rawMaterials.${index}.concreteType`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Nuance de béton</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Sélectionnez une nuance" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {concreteOptions.map(c => <SelectItem key={c} value={c}>{`${c} (${emissionFactors.concrete.find(f => f.name === c)?.originalFactor} ${emissionFactors.concrete.find(f => f.name === c)?.originalUnit.replace('tCO2eq/m³','tCO₂eq/m³')})`}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                           <FormField
                             control={form.control}
                             name={`rawMaterials.${index}.quantity`}
                             render={({ field }) => (
