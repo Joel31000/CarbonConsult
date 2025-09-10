@@ -65,13 +65,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { saveSubmission } from "@/lib/actions";
 import { emissionFactors } from "@/lib/data";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const formSchema = z.object({
   rawMaterials: z.array(
     z.object({
       material: z.string().min(1, "Veuillez sélectionner un matériau."),
       quantity: z.coerce.number().min(0.01, "La quantité doit être supérieure à 0."),
+      // Champs spécifiques au béton
       concreteType: z.string().optional(),
+      cementMass: z.coerce.number().optional(),
+      isReinforced: z.boolean().optional(),
+      rebarMass: z.coerce.number().optional(),
+      rebarFactor: z.coerce.number().optional(),
     })
   ),
   manufacturing: z.array(
@@ -106,6 +112,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 const materialOptions = emissionFactors.materials.map((m) => m.name);
 const concreteOptions = emissionFactors.concrete.map((c) => c.name);
+const rebarOptions = emissionFactors.rebar;
 const processOptions = emissionFactors.manufacturing.map((p) => p.name);
 const implementationOptions = emissionFactors.implementation.map((i) => i.name);
 const transportOptions = emissionFactors.transport.map((t) => t.name);
@@ -297,18 +304,33 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
 
   const calculateEmissions = (values: FormValues) => {
     const rmDetails = values.rawMaterials?.map(item => {
-      let factor = 0;
+      let co2e = 0;
       let name = item.material || "Inconnu";
       
-      if (item.material === "Béton" && item.concreteType) {
+      if (item.material === "Béton") {
+        name = item.concreteType || "Béton";
+        const quantity = item.quantity || 0;
+        const cementMass = item.cementMass || 0;
         const concreteFactor = emissionFactors.concrete.find(c => c.name === item.concreteType)?.factor || 0;
-        factor = concreteFactor;
-        name = item.concreteType;
+        
+        // Calcul pour le béton (ciment)
+        const cementCO2e = (quantity * cementMass) * concreteFactor;
+        co2e += cementCO2e;
+        
+        // Calcul pour l'armature si applicable
+        if (item.isReinforced) {
+          const rebarMass = item.rebarMass || 0;
+          const rebarFactorValue = item.rebarFactor || 0;
+          const rebarCO2e = (quantity * rebarMass) * rebarFactorValue;
+          co2e += rebarCO2e;
+          name = `${name} armé`;
+        }
       } else {
-        factor = emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
+        const factor = emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
+        co2e = (item.quantity || 0) * factor;
       }
       
-      return { name, co2e: (item.quantity || 0) * factor };
+      return { name, co2e };
     }).filter(item => item.co2e > 0) || [];
     
     const mfgDetails = values.manufacturing?.map(item => {
@@ -420,8 +442,13 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     };
     
     data.rawMaterials?.forEach((item, index) => {
-        const co2e = calculatedDetails.rawMaterials.find(d => d.name === (item.material === "Béton" && item.concreteType ? item.concreteType : item.material))?.co2e || 0;
-        addRow(index === 0 ? 'Matériaux' : '', item, co2e);
+      let name = item.material;
+      if (item.material === "Béton" && item.concreteType) {
+          name = item.concreteType || "Béton";
+          if (item.isReinforced) name += " armé";
+      }
+      const co2e = calculatedDetails.rawMaterials.find(d => d.name === name)?.co2e || 0;
+      addRow(index === 0 ? 'Matériaux' : '', item, co2e);
     });
 
     data.manufacturing?.forEach((item, index) => {
@@ -529,71 +556,152 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => rmAppend({ material: "", quantity: 0, concreteType: "" })}
+                        onClick={() => rmAppend({ material: "", quantity: 0 })}
                       >
                         <PlusCircle className="mr-2 h-4 w-4" /> Ajouter un matériau
                       </Button>
                     }
                   >
                     {rmFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucun matériau ajouté.</p>}
-                    {rmFields.map((field, index) => (
+                    {rmFields.map((field, index) => {
+                      const isConcrete = watchedRawMaterials[index]?.material === 'Béton';
+                      const isReinforced = isConcrete && watchedRawMaterials[index]?.isReinforced;
+
+                      return (
                       <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          <FormField
-                            control={form.control}
-                            name={`rawMaterials.${index}.material`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Matériau</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Sélectionnez un matériau" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {materialOptions.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          {watchedRawMaterials[index]?.material === 'Béton' && (
+                        <div className="flex flex-col gap-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <FormField
                               control={form.control}
-                              name={`rawMaterials.${index}.concreteType`}
+                              name={`rawMaterials.${index}.material`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Nuance de béton</FormLabel>
+                                  <FormLabel>Matériau</FormLabel>
                                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl>
                                       <SelectTrigger>
-                                        <SelectValue placeholder="Sélectionnez une nuance" />
+                                        <SelectValue placeholder="Sélectionnez un matériau" />
                                       </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                      {concreteOptions.map(c => <SelectItem key={c} value={c}>{`${c} (${emissionFactors.concrete.find(f => f.name === c)?.originalFactor} ${emissionFactors.concrete.find(f => f.name === c)?.originalUnit.replace('tCO2eq/m³','tCO₂eq/m³')})`}</SelectItem>)}
+                                      {materialOptions.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                                     </SelectContent>
                                   </Select>
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
+                             <FormField
+                              control={form.control}
+                              name={`rawMaterials.${index}.quantity`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Quantité ({isConcrete ? 'm³' : 'kg'})</FormLabel>
+                                  <FormControl>
+                                    <Input type="number" placeholder={isConcrete ? "ex: 10" : "ex: 100"} {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          
+                          {isConcrete && (
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 rounded-md border bg-card/50 p-4">
+                               <FormField
+                                control={form.control}
+                                name={`rawMaterials.${index}.concreteType`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Type béton bas carbone</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Sélectionnez un type" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {concreteOptions.map(c => <SelectItem key={c} value={c}>{`${c} (${emissionFactors.concrete.find(f => f.name === c)?.factor} ${emissionFactors.concrete.find(f => f.name === c)?.unit})`}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`rawMaterials.${index}.cementMass`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Masse ciment (kg)</FormLabel>
+                                    <FormControl>
+                                      <Input type="number" placeholder="ex: 300" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                               <FormField
+                                control={form.control}
+                                name={`rawMaterials.${index}.isReinforced`}
+                                render={({ field }) => (
+                                  <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md p-4 col-span-full">
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                      />
+                                    </FormControl>
+                                    <div className="space-y-1 leading-none">
+                                      <FormLabel>
+                                        Béton armé
+                                      </FormLabel>
+                                    </div>
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
                           )}
-                           <FormField
-                            control={form.control}
-                            name={`rawMaterials.${index}.quantity`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Quantité (kg)</FormLabel>
-                                <FormControl>
-                                  <Input type="number" placeholder="ex: 100" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+
+                          {isReinforced && (
+                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 rounded-md border bg-card/50 p-4">
+                                <p className="col-span-full font-medium text-sm">Paramètres du Béton Armé</p>
+                               <FormField
+                                control={form.control}
+                                name={`rawMaterials.${index}.rebarMass`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Masse de ferraillage (Kg/m³)</FormLabel>
+                                    <FormControl>
+                                      <Input type="number" placeholder="ex: 100" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                               <FormField
+                                control={form.control}
+                                name={`rawMaterials.${index}.rebarFactor`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Facteur d'émission armature</FormLabel>
+                                    <Select onValueChange={(value) => field.onChange(parseFloat(value))} defaultValue={field.value?.toString() || "1.2"}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Sélectionnez un facteur" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {rebarOptions.map(r => <SelectItem key={r.name} value={r.factor.toString()}>{r.name}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          )}
+
                         </div>
                         <div className="pt-8">
                           <Button type="button" variant="ghost" size="icon" onClick={() => rmRemove(index)}>
@@ -601,7 +709,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                           </Button>
                         </div>
                       </div>
-                    ))}
+                    )})}
                   </SectionCard>
                 </TabsContent>
 
