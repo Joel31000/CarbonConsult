@@ -17,6 +17,7 @@ import {
   Trash2,
   Truck,
   MessageSquare,
+  Sparkles,
 } from "lucide-react";
 import { Construction, FileSpreadsheet } from "@/components/icons";
 import React, { useMemo, useState, useTransition } from "react";
@@ -66,6 +67,8 @@ import { useToast } from "@/hooks/use-toast";
 import { saveSubmission } from "@/lib/actions";
 import { emissionFactors } from "@/lib/data";
 import { Checkbox } from "@/components/ui/checkbox";
+import type { SuggestionResponse } from "@/ai/flows/suggest-carbon-improvements";
+import { suggestImprovements } from "@/ai/flows/suggest-carbon-improvements";
 
 const formSchema = z.object({
   rawMaterials: z.array(
@@ -265,6 +268,8 @@ const TotalsDisplay = ({
 export function CarbonConsultForm({ consultationLabel }: { consultationLabel: string }) {
   const { toast } = useToast();
   const [isSubmitPending, startSubmitTransition] = useTransition();
+  const [isSuggestionPending, startSuggestionTransition] = useTransition();
+  const [suggestion, setSuggestion] = useState<SuggestionResponse | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -314,6 +319,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         const concreteFactor = emissionFactors.concrete.find(c => c.name === item.concreteType)?.factor || 0;
         
         // Calcul pour le béton (ciment)
+        // Le facteur est en kgCO2eq/kg de ciment. Masse de ciment en kg/m³. Quantité en m³.
         const cementCO2e = (quantity * cementMass) * concreteFactor;
         co2e += cementCO2e;
         
@@ -321,6 +327,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         if (item.isReinforced) {
           const rebarMass = item.rebarMass || 0;
           const rebarFactorValue = item.rebarFactor || 0;
+          // Le facteur est en kgCO2eq/kg d'armature. Masse de ferraillage en kg/m³. Quantité en m³.
           const rebarCO2e = (quantity * rebarMass) * rebarFactorValue;
           co2e += rebarCO2e;
           name = `${name} armé`;
@@ -402,7 +409,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
               <tr>
                 <th style="${thStyle}">Rubriques</th>
                 <th style="${thStyle}">Méthodes</th>
-                <th style="${thStyle}">Quantité (kg)</th>
+                <th style="${thStyle}">Quantité (kg ou m³)</th>
                 <th style="${thStyle}">Durée (heures)</th>
                 <th style="${thStyle}">Distance (km)</th>
                 <th style="${thStyle}">Poids (tonnes)</th>
@@ -413,26 +420,33 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     `;
 
     const addRow = (rubrique: string, item: any, co2e: number) => {
-        const qKg = Number(item.quantity);
+        const qVal = Number(item.quantity);
         const dur = Number(item.duration);
         const dist = Number(item.distance);
-        const wKg = Number(item.weight);
+        const wVal = Number(item.weight);
 
-        const quantityKg = !isNaN(qKg) && item.quantity !== undefined ? qKg.toFixed(2) : (item.weight !== undefined && item.distance === undefined && !isNaN(wKg) ? wKg.toFixed(2) : '');
+        let quantityDisplay = '';
+        if (!isNaN(qVal) && item.quantity !== undefined) {
+          quantityDisplay = qVal.toFixed(2);
+        } else if (!isNaN(wVal) && item.weight !== undefined && item.distance === undefined) {
+          quantityDisplay = wVal.toFixed(2);
+        }
+        
         const duration = !isNaN(dur) && item.duration !== undefined ? dur.toFixed(2) : '';
         const distance = !isNaN(dist) && item.distance !== undefined ? dist.toFixed(2) : '';
-        const weightTonnes = !isNaN(wKg) && item.weight !== undefined && item.distance !== undefined ? wKg.toFixed(2) : '';
+        const weightTonnes = !isNaN(wVal) && item.weight !== undefined && item.distance !== undefined ? wVal.toFixed(2) : '';
 
         let methodName = item.material || item.process || item.mode || item.method;
         if (item.material === "Béton" && item.concreteType) {
           methodName = item.concreteType;
+          if (item.isReinforced) methodName += " armé";
         }
 
         tableHtml += `
             <tr>
                 <td style="${tdStyle}">${rubrique}</td>
                 <td style="${tdStyle}">${methodName}</td>
-                <td style="${numStyle}" class="num">${quantityKg}</td>
+                <td style="${numStyle}" class="num">${quantityDisplay}</td>
                 <td style="${numStyle}" class="num">${duration}</td>
                 <td style="${numStyle}" class="num">${distance}</td>
                 <td style="${numStyle}" class="num">${weightTonnes}</td>
@@ -443,12 +457,16 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     
     data.rawMaterials?.forEach((item, index) => {
       let name = item.material;
-      if (item.material === "Béton" && item.concreteType) {
+      if (item.material === "Béton") {
           name = item.concreteType || "Béton";
           if (item.isReinforced) name += " armé";
       }
-      const co2e = calculatedDetails.rawMaterials.find(d => d.name === name)?.co2e || 0;
-      addRow(index === 0 ? 'Matériaux' : '', item, co2e);
+      const co2eItem = calculatedDetails.rawMaterials.find(d => {
+        // Find logic needs to be more robust for complex names
+        if (d.name.startsWith("Béton")) return d.name === name;
+        return d.name === item.material;
+      });
+      addRow(index === 0 ? 'Matériaux' : '', item, co2eItem?.co2e || 0);
     });
 
     data.manufacturing?.forEach((item, index) => {
@@ -500,6 +518,53 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     });
   };
 
+  const handleGetSuggestions = () => {
+    startSuggestionTransition(async () => {
+      setSuggestion(null);
+      const values = form.getValues();
+      const { totals, details } = calculateEmissions(values);
+
+      if (totals.grandTotal === 0) {
+        toast({
+          variant: "destructive",
+          title: "Analyse impossible",
+          description: "Veuillez entrer des données avant de demander une suggestion.",
+        });
+        return;
+      }
+      
+      try {
+        const result = await suggestImprovements({
+          summary: {
+            totalEmissions: totals.grandTotal,
+            materialEmissions: totals.rawMaterials,
+            manufacturingEmissions: totals.manufacturing,
+            implementationEmissions: totals.implementation,
+            transportEmissions: totals.transport,
+            endOfLifeEmissions: totals.endOfLife,
+          },
+          details: {
+            materials: details.rawMaterials.map(m => `${m.name}: ${m.co2e.toFixed(2)} kgCO2e`),
+            manufacturing: details.manufacturing.map(m => `${m.name}: ${m.co2e.toFixed(2)} kgCO2e`),
+            implementation: details.implementation.map(m => `${m.name}: ${m.co2e.toFixed(2)} kgCO2e`),
+            transport: details.transport.map(m => `${m.name}: ${m.co2e.toFixed(2)} kgCO2e`),
+            endOfLife: details.endOfLife.map(m => `${m.name}: ${m.co2e.toFixed(2)} kgCO2e`),
+          },
+          comments: values.explanatoryComments || ""
+        });
+        setSuggestion(result);
+      } catch (error) {
+        console.error("Erreur lors de la suggestion d'améliorations:", error);
+        toast({
+          variant: "destructive",
+          title: "Erreur de l'IA",
+          description: "Impossible d'obtenir des suggestions pour le moment.",
+        });
+      }
+    });
+  };
+
+
   const onSubmit = (values: FormValues) => {
     startSubmitTransition(async () => {
       const result = await saveSubmission(values);
@@ -549,14 +614,22 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                 <TabsContent value="raw-materials">
                   <SectionCard
                     title="Matériaux"
-                    description="Spécifiez les matériaux utilisés dans votre produit."
+                    description="Spécifiez les matériaux utilisés et leurs quantités."
                     icon={Leaf}
                     actions={
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => rmAppend({ material: "", quantity: 0 })}
+                        onClick={() => rmAppend({ 
+                          material: "", 
+                          quantity: 0,
+                          concreteType: "",
+                          cementMass: 0,
+                          isReinforced: false,
+                          rebarMass: 0,
+                          rebarFactor: 1.2
+                        })}
                       >
                         <PlusCircle className="mr-2 h-4 w-4" /> Ajouter un matériau
                       </Button>
@@ -621,7 +694,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                                         </SelectTrigger>
                                       </FormControl>
                                       <SelectContent>
-                                        {concreteOptions.map(c => <SelectItem key={c} value={c}>{`${c} (${emissionFactors.concrete.find(f => f.name === c)?.factor} ${emissionFactors.concrete.find(f => f.name === c)?.unit})`}</SelectItem>)}
+                                        {concreteOptions.map(c => <SelectItem key={c} value={c}>{`${c} (${emissionFactors.concrete.find(f => f.name === c)?.factor} kgCO₂/kg)`}</SelectItem>)}
                                       </SelectContent>
                                     </Select>
                                     <FormMessage />
@@ -633,7 +706,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                                 name={`rawMaterials.${index}.cementMass`}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Masse ciment (kg)</FormLabel>
+                                    <FormLabel>Masse ciment (kg/m³)</FormLabel>
                                     <FormControl>
                                       <Input type="number" placeholder="ex: 300" {...field} />
                                     </FormControl>
@@ -671,7 +744,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                                 name={`rawMaterials.${index}.rebarMass`}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Masse de ferraillage (Kg/m³)</FormLabel>
+                                    <FormLabel>Masse de ferraillage (kg/m³)</FormLabel>
                                     <FormControl>
                                       <Input type="number" placeholder="ex: 100" {...field} />
                                     </FormControl>
@@ -685,7 +758,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                                 render={({ field }) => (
                                   <FormItem>
                                     <FormLabel>Facteur d'émission armature</FormLabel>
-                                    <Select onValueChange={(value) => field.onChange(parseFloat(value))} defaultValue={field.value?.toString() || "1.2"}>
+                                    <Select onValueChange={(value) => field.onChange(parseFloat(value))} defaultValue={field.value?.toString()}>
                                       <FormControl>
                                         <SelectTrigger>
                                           <SelectValue placeholder="Sélectionnez un facteur" />
@@ -1007,6 +1080,40 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                   )}
               />
           </SectionCard>
+
+          <SectionCard
+            title="Suggestions d'amélioration"
+            description="Laissez l'IA analyser votre bilan et proposer des pistes d'optimisation."
+            icon={Sparkles}
+            actions={
+              <Button type="button" variant="outline" size="sm" onClick={handleGetSuggestions} disabled={isSuggestionPending}>
+                {isSuggestionPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                Obtenir des suggestions
+              </Button>
+            }
+          >
+            {isSuggestionPending && (
+              <div className="space-y-2 pt-4">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            )}
+            {suggestion && !isSuggestionPending && (
+              <div className="space-y-4 pt-4 text-sm">
+                <p><strong>Bilan de l'IA :</strong> {suggestion.assessment}</p>
+                <div className="prose prose-sm prose-invert max-w-none">
+                  <strong>Recommandations :</strong>
+                  <ul>
+                    {suggestion.recommendations.map((rec, i) => <li key={i}>{rec}</li>)}
+                  </ul>
+                </div>
+              </div>
+            )}
+            {!suggestion && !isSuggestionPending && (
+              <p className="text-sm text-center text-muted-foreground pt-4">Aucune suggestion pour le moment.</p>
+            )}
+          </SectionCard>
         </div>
 
         <div className="w-full print-container lg:col-span-1 flex flex-col gap-8">
@@ -1026,3 +1133,5 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </Form>
   );
 }
+
+    
