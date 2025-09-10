@@ -291,28 +291,28 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
 
   const watchedValues = useWatch({ control: form.control });
 
-  const { totals, details } = useMemo(() => {
-    const rmDetails = watchedValues.rawMaterials?.map(item => {
+  const calculateEmissions = (values: FormValues) => {
+    const rmDetails = values.rawMaterials?.map(item => {
       const factor = emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
       return { name: item.material || "Inconnu", co2e: (item.quantity || 0) * factor };
     }).filter(item => item.co2e > 0) || [];
     
-    const mfgDetails = watchedValues.manufacturing?.map(item => {
+    const mfgDetails = values.manufacturing?.map(item => {
       const factor = emissionFactors.manufacturing.find(p => p.name === item.process)?.factor || 0;
       return { name: item.process || "Inconnu", co2e: (item.duration || 0) * factor };
     }).filter(item => item.co2e > 0) || [];
 
-    const implDetails = watchedValues.implementation?.map(item => {
+    const implDetails = values.implementation?.map(item => {
       const factor = emissionFactors.implementation.find(i => i.name === item.process)?.factor || 0;
       return { name: item.process || "Inconnu", co2e: (item.duration || 0) * factor };
     }).filter(item => item.co2e > 0) || [];
 
-    const tptDetails = watchedValues.transport?.map(item => {
+    const tptDetails = values.transport?.map(item => {
       const factor = emissionFactors.transport.find(t => t.name === item.mode)?.factor || 0;
       return { name: item.mode || "Inconnu", co2e: (item.distance || 0) * (item.weight || 0) * factor };
     }).filter(item => item.co2e > 0) || [];
 
-    const eolDetails = watchedValues.endOfLife?.map(item => {
+    const eolDetails = values.endOfLife?.map(item => {
       const factor = emissionFactors.endOfLife.find(e => e.name === item.method)?.factor || 0;
       return { name: item.method || "Inconnu", co2e: (item.weight || 0) * factor };
     }).filter(item => item.co2e > 0) || [];
@@ -340,11 +340,13 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         endOfLife: eolDetails,
       }
     };
-  }, [watchedValues]);
+  };
+
+  const { totals, details } = useMemo(() => calculateEmissions(watchedValues as FormValues), [watchedValues]);
 
   const handleExportToCSV = () => {
     const data = form.getValues();
-    const { totals: calculatedTotals, details: calculatedDetails } = totals;
+    const { totals: calculatedTotals, details: calculatedDetails } = calculateEmissions(data);
     
     let csvContent = "data:text/csv;charset=utf-8,";
     csvContent += `Libellé Consultation,"${consultationLabel || 'N/A'}"\n\n`;
