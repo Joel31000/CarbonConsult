@@ -378,10 +378,15 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     `;
 
     const addRow = (rubrique: string, item: any, co2e: number) => {
-        const quantityKg = item.quantity !== undefined ? item.quantity.toFixed(2) : (item.weight !== undefined && item.distance === undefined ? item.weight.toFixed(2) : '');
-        const duration = item.duration !== undefined ? item.duration.toFixed(2) : '';
-        const distance = item.distance !== undefined ? item.distance.toFixed(2) : '';
-        const weightTonnes = item.weight !== undefined && item.distance !== undefined ? item.weight.toFixed(2) : '';
+        const qKg = Number(item.quantity);
+        const dur = Number(item.duration);
+        const dist = Number(item.distance);
+        const wKg = Number(item.weight);
+
+        const quantityKg = !isNaN(qKg) && item.quantity !== undefined ? qKg.toFixed(2) : (item.weight !== undefined && item.distance === undefined && !isNaN(wKg) ? wKg.toFixed(2) : '');
+        const duration = !isNaN(dur) && item.duration !== undefined ? dur.toFixed(2) : '';
+        const distance = !isNaN(dist) && item.distance !== undefined ? dist.toFixed(2) : '';
+        const weightTonnes = !isNaN(wKg) && item.weight !== undefined && item.distance !== undefined ? wKg.toFixed(2) : '';
 
         tableHtml += `
             <tr>
@@ -873,3 +878,5 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </Form>
   );
 }
+
+    
