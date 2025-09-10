@@ -421,7 +421,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     
     data.rawMaterials?.forEach((item, index) => {
         const co2e = calculatedDetails.rawMaterials.find(d => d.name === (item.material === "Béton" && item.concreteType ? item.concreteType : item.material))?.co2e || 0;
-        addRow(index === 0 ? 'Matières premières' : '', item, co2e);
+        addRow(index === 0 ? 'Matériaux' : '', item, co2e);
     });
 
     data.manufacturing?.forEach((item, index) => {
@@ -502,7 +502,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
           <Tabs defaultValue="raw-materials" className="w-full">
             <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 print:hidden">
               <TabsTrigger value="raw-materials">
-                <Leaf className="mr-2 h-4 w-4" /> Matières premières
+                <Leaf className="mr-2 h-4 w-4" /> Matériaux
               </TabsTrigger>
               <TabsTrigger value="manufacturing">
                 <Factory className="mr-2 h-4 w-4" /> Fabrication
@@ -521,8 +521,8 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
             <div className="print:hidden">
                 <TabsContent value="raw-materials">
                   <SectionCard
-                    title="Matières premières"
-                    description="Spécifiez les matières premières utilisées dans votre produit."
+                    title="Matériaux"
+                    description="Spécifiez les matériaux utilisés dans votre produit."
                     icon={Leaf}
                     actions={
                       <Button
