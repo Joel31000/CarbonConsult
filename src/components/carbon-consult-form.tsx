@@ -378,14 +378,19 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     `;
 
     const addRow = (rubrique: string, item: any, co2e: number) => {
+        const quantityKg = item.quantity !== undefined ? item.quantity.toFixed(2) : (item.weight !== undefined && item.distance === undefined ? item.weight.toFixed(2) : '');
+        const duration = item.duration !== undefined ? item.duration.toFixed(2) : '';
+        const distance = item.distance !== undefined ? item.distance.toFixed(2) : '';
+        const weightTonnes = item.weight !== undefined && item.distance !== undefined ? item.weight.toFixed(2) : '';
+
         tableHtml += `
             <tr>
                 <td style="${tdStyle}">${rubrique}</td>
                 <td style="${tdStyle}">${item.material || item.process || item.mode || item.method}</td>
-                <td style="${numStyle}" class="num">${item.quantity || item.weight && !item.distance ? item.weight.toFixed(2) : ''}</td>
-                <td style="${numStyle}" class="num">${item.duration ? item.duration.toFixed(2) : ''}</td>
-                <td style="${numStyle}" class="num">${item.distance ? item.distance.toFixed(2) : ''}</td>
-                <td style="${numStyle}" class="num">${item.distance ? item.weight.toFixed(2) : ''}</td>
+                <td style="${numStyle}" class="num">${quantityKg}</td>
+                <td style="${numStyle}" class="num">${duration}</td>
+                <td style="${numStyle}" class="num">${distance}</td>
+                <td style="${numStyle}" class="num">${weightTonnes}</td>
                 <td style="${numStyle}" class="num">${co2e.toFixed(2)}</td>
             </tr>
         `;
@@ -868,5 +873,3 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </Form>
   );
 }
-
-    
