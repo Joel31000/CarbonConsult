@@ -211,7 +211,7 @@ const TotalsDisplay = ({
       <CardHeader>
         <div className="flex justify-between items-center">
           <div className="space-y-1.5">
-            <CardTitle>Résumé des émissions</CardTitle>
+            <CardTitle>Bilan des émissions</CardTitle>
             {consultationLabel && (
               <CardDescription>{consultationLabel}</CardDescription>
             )}
@@ -878,5 +878,3 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </Form>
   );
 }
-
-    
