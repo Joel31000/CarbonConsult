@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,6 +17,7 @@ import {
   Truck,
   MessageSquare,
 } from "lucide-react";
+import { Construction } from "@/components/icons";
 import React, { useMemo, useState, useTransition } from "react";
 import {
   Bar,
@@ -78,6 +78,12 @@ const formSchema = z.object({
       duration: z.coerce.number().min(0.01, "La durée doit être supérieure à 0."),
     })
   ),
+  implementation: z.array(
+    z.object({
+      process: z.string().min(1, "Veuillez sélectionner un processus."),
+      duration: z.coerce.number().min(0.01, "La durée doit être supérieure à 0."),
+    })
+  ),
   transport: z.array(
     z.object({
       mode: z.string().min(1, "Veuillez sélectionner un mode de transport."),
@@ -98,6 +104,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 const materialOptions = emissionFactors.materials.map((m) => m.name);
 const processOptions = emissionFactors.manufacturing.map((p) => p.name);
+const implementationOptions = emissionFactors.implementation.map((i) => i.name);
 const transportOptions = emissionFactors.transport.map((t) => t.name);
 const eolOptions = emissionFactors.endOfLife.map((e) => e.name);
 
@@ -139,6 +146,7 @@ const TotalsDisplay = ({
   totals: {
     rawMaterials: number;
     manufacturing: number;
+    implementation: number;
     transport: number;
     endOfLife: number;
     grandTotal: number;
@@ -146,6 +154,7 @@ const TotalsDisplay = ({
   details: {
     rawMaterials: { name: string; co2e: number }[];
     manufacturing: { name: string; co2e: number }[];
+    implementation: { name: string; co2e: number }[];
     transport: { name: string; co2e: number }[];
     endOfLife: { name: string; co2e: number }[];
   };
@@ -178,6 +187,10 @@ const TotalsDisplay = ({
       {
         name: "Fabrication",
         ...details.manufacturing.reduce((acc, item) => ({ ...acc, [item.name]: item.co2e }), {})
+      },
+      {
+        name: "Mise en œuvre",
+        ...details.implementation.reduce((acc, item) => ({ ...acc, [item.name]: item.co2e }), {})
       },
       {
         name: "Transport",
@@ -241,6 +254,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     defaultValues: {
       rawMaterials: [{ material: "", quantity: 0 }],
       manufacturing: [],
+      implementation: [],
       transport: [],
       endOfLife: [],
       explanatoryComments: "",
@@ -254,6 +268,10 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
   const { fields: mfgFields, append: mfgAppend, remove: mfgRemove } = useFieldArray({
     control: form.control,
     name: "manufacturing",
+  });
+  const { fields: implFields, append: implAppend, remove: implRemove } = useFieldArray({
+    control: form.control,
+    name: "implementation",
   });
   const { fields: tptFields, append: tptAppend, remove: tptRemove } = useFieldArray({
     control: form.control,
@@ -277,6 +295,11 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
       return { name: item.process || "Inconnu", co2e: (item.duration || 0) * factor };
     }).filter(item => item.co2e > 0) || [];
 
+    const implDetails = watchedValues.implementation?.map(item => {
+      const factor = emissionFactors.implementation.find(i => i.name === item.process)?.factor || 0;
+      return { name: item.process || "Inconnu", co2e: (item.duration || 0) * factor };
+    }).filter(item => item.co2e > 0) || [];
+
     const tptDetails = watchedValues.transport?.map(item => {
       const factor = emissionFactors.transport.find(t => t.name === item.mode)?.factor || 0;
       return { name: item.mode || "Inconnu", co2e: (item.distance || 0) * (item.weight || 0) * factor };
@@ -289,6 +312,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
 
     const rmTotal = rmDetails.reduce((sum, item) => sum + item.co2e, 0);
     const mfgTotal = mfgDetails.reduce((sum, item) => sum + item.co2e, 0);
+    const implTotal = implDetails.reduce((sum, item) => sum + item.co2e, 0);
     const tptTotal = tptDetails.reduce((sum, item) => sum + item.co2e, 0);
     const eolTotal = eolDetails.reduce((sum, item) => sum + item.co2e, 0);
 
@@ -296,13 +320,15 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
       totals: {
         rawMaterials: rmTotal,
         manufacturing: mfgTotal,
+        implementation: implTotal,
         transport: tptTotal,
         endOfLife: eolTotal,
-        grandTotal: rmTotal + mfgTotal + tptTotal + eolTotal,
+        grandTotal: rmTotal + mfgTotal + implTotal + tptTotal + eolTotal,
       },
       details: {
         rawMaterials: rmDetails,
         manufacturing: mfgDetails,
+        implementation: implDetails,
         transport: tptDetails,
         endOfLife: eolDetails,
       }
@@ -336,12 +362,15 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
       >
         <div className="lg:col-span-2 flex flex-col gap-8">
           <Tabs defaultValue="raw-materials" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 print:hidden">
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 print:hidden">
               <TabsTrigger value="raw-materials">
                 <Leaf className="mr-2 h-4 w-4" /> Matières premières
               </TabsTrigger>
               <TabsTrigger value="manufacturing">
                 <Factory className="mr-2 h-4 w-4" /> Fabrication
+              </TabsTrigger>
+              <TabsTrigger value="implementation">
+                <Construction className="mr-2 h-4 w-4" /> Mise en œuvre
               </TabsTrigger>
               <TabsTrigger value="transport">
                 <Truck className="mr-2 h-4 w-4" /> Transport
@@ -470,6 +499,69 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                         </div>
                           <div className="pt-8">
                           <Button type="button" variant="ghost" size="icon" onClick={() => mfgRemove(index)}>
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </SectionCard>
+                </TabsContent>
+
+                <TabsContent value="implementation">
+                  <SectionCard
+                    title="Mise en œuvre"
+                    description="Détaillez les étapes de mise en œuvre sur le chantier."
+                    icon={Construction}
+                    actions={
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => implAppend({ process: "", duration: 0 })}
+                      >
+                        <PlusCircle className="mr-2 h-4 w-4" /> Ajouter un processus
+                      </Button>
+                    }
+                  >
+                    {implFields.map((field, index) => (
+                      <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          <FormField
+                            control={form.control}
+                            name={`implementation.${index}.process`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Processus</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Sélectionnez un processus" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {implementationOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name={`implementation.${index}.duration`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Durée (heures)</FormLabel>
+                                <FormControl>
+                                  <Input type="number" placeholder="ex: 50" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="pt-8">
+                          <Button type="button" variant="ghost" size="icon" onClick={() => implRemove(index)}>
                             <Trash2 className="h-4 w-4 text-muted-foreground" />
                           </Button>
                         </div>

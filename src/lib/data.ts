@@ -17,6 +17,16 @@ export const emissionFactors = {
     { name: "Peinture", factor: 3.0, unit: "kg CO2e/hr" },
     { name: "Impression 3D (Plastique)", factor: 6.0, unit: "kg CO2e/hr" },
   ],
+  implementation: [
+    { name: "Grue", factor: 13.5, unit: "kg CO2e/hr" },
+    { name: "Bétonnière", factor: 8.5, unit: "kg CO2e/hr" },
+    { name: "Groupe électrogène", factor: 10.5, unit: "kg CO2e/hr" },
+    { name: "Pelleuteuse", factor: 20.0, unit: "kg CO2e/hr" },
+    { name: "Pelle araignée", factor: 14.5, unit: "kg CO2e/hr" },
+    { name: "Compacteur", factor: 18.0, unit: "kg CO2e/hr" },
+    { name: "Bulldozer", factor: 27.5, unit: "kg CO2e/hr" },
+    { name: "Chargeuse", factor: 14.0, unit: "kg CO2e/hr" },
+  ],
   transport: [
     { name: "Route (Camion diesel)", factor: 0.1, unit: "kg CO2e/t-km" },
     { name: "Route (Camion électrique)", factor: 0.04, unit: "kg CO2e/t-km" },
