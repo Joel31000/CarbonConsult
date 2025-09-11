@@ -69,6 +69,7 @@ import { emissionFactors } from "@/lib/data";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { SuggestionResponse } from "@/ai/flows/suggest-carbon-improvements";
 import { suggestImprovements } from "@/ai/flows/suggest-carbon-improvements";
+import { Skeleton } from "./ui/skeleton";
 
 const formSchema = z.object({
   rawMaterials: z.array(
@@ -461,11 +462,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
           name = item.concreteType || "Béton";
           if (item.isReinforced) name += " armé";
       }
-      const co2eItem = calculatedDetails.rawMaterials.find(d => {
-        // Find logic needs to be more robust for complex names
-        if (d.name.startsWith("Béton")) return d.name === name;
-        return d.name === item.material;
-      });
+      const co2eItem = calculatedDetails.rawMaterials.find(d => d.name === name);
       addRow(index === 0 ? 'Matériaux' : '', item, co2eItem?.co2e || 0);
     });
 
