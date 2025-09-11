@@ -411,6 +411,10 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                 <th style="${thStyle}">Rubriques</th>
                 <th style="${thStyle}">Méthodes</th>
                 <th style="${thStyle}">Quantité (kg ou m³)</th>
+                <th style="${thStyle}">Facteur d'émission (kg CO²e)</th>
+                <th style="${thStyle}">Masse ciment (kg/m³)</th>
+                <th style="${thStyle}">Facteur d'émission armature (kg CO²e)</th>
+                <th style="${thStyle}">Masse de ferraillage (kg/m³)</th>
                 <th style="${thStyle}">Durée (heures)</th>
                 <th style="${thStyle}">Distance (km)</th>
                 <th style="${thStyle}">Poids (tonnes)</th>
@@ -426,21 +430,30 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         const dist = Number(item.distance);
         const wVal = Number(item.weight);
 
-        let quantityDisplay = '';
-        if (!isNaN(qVal) && item.quantity !== undefined) {
-          quantityDisplay = qVal.toFixed(2);
-        } else if (!isNaN(wVal) && item.weight !== undefined && item.distance === undefined) {
-          quantityDisplay = wVal.toFixed(2);
-        }
-        
+        const quantityDisplay = !isNaN(qVal) && item.quantity !== undefined ? qVal.toFixed(2) : '';
         const duration = !isNaN(dur) && item.duration !== undefined ? dur.toFixed(2) : '';
         const distance = !isNaN(dist) && item.distance !== undefined ? dist.toFixed(2) : '';
         const weightTonnes = !isNaN(wVal) && item.weight !== undefined && item.distance !== undefined ? wVal.toFixed(2) : '';
-
+        
+        let emissionFactorDisplay = '';
+        let cementMassDisplay = '';
+        let rebarFactorDisplay = '';
+        let rebarMassDisplay = '';
         let methodName = item.material || item.process || item.mode || item.method;
-        if (item.material === "Béton" && item.concreteType) {
-          methodName = item.concreteType;
-          if (item.isReinforced) methodName += " armé";
+        
+        if (item.material === "Béton") {
+            methodName = item.concreteType || "Béton";
+            const concreteFactor = emissionFactors.concrete.find(c => c.name === item.concreteType)?.factor || 0;
+            emissionFactorDisplay = concreteFactor.toFixed(3);
+            cementMassDisplay = (Number(item.cementMass) || 0).toFixed(2);
+            if (item.isReinforced) {
+                methodName += " armé";
+                rebarFactorDisplay = (Number(item.rebarFactor) || 0).toFixed(2);
+                rebarMassDisplay = (Number(item.rebarMass) || 0).toFixed(2);
+            }
+        } else if (item.material) {
+             const factor = emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
+             emissionFactorDisplay = factor.toFixed(2);
         }
 
         tableHtml += `
@@ -448,6 +461,10 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                 <td style="${tdStyle}">${rubrique}</td>
                 <td style="${tdStyle}">${methodName}</td>
                 <td style="${numStyle}" class="num">${quantityDisplay}</td>
+                <td style="${numStyle}" class="num">${emissionFactorDisplay}</td>
+                <td style="${numStyle}" class="num">${cementMassDisplay}</td>
+                <td style="${numStyle}" class="num">${rebarFactorDisplay}</td>
+                <td style="${numStyle}" class="num">${rebarMassDisplay}</td>
                 <td style="${numStyle}" class="num">${duration}</td>
                 <td style="${numStyle}" class="num">${distance}</td>
                 <td style="${numStyle}" class="num">${weightTonnes}</td>
@@ -457,13 +474,13 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     };
     
     data.rawMaterials?.forEach((item, index) => {
-      let name = item.material;
-      if (item.material === "Béton") {
-          name = item.concreteType || "Béton";
-          if (item.isReinforced) name += " armé";
-      }
-      const co2eItem = calculatedDetails.rawMaterials.find(d => d.name === name);
-      addRow(index === 0 ? 'Matériaux' : '', item, co2eItem?.co2e || 0);
+        let name = item.material;
+        if (item.material === "Béton") {
+            name = item.concreteType || "Béton";
+            if (item.isReinforced) name += " armé";
+        }
+        const co2eItem = calculatedDetails.rawMaterials.find(d => d.name === name);
+        addRow(index === 0 ? 'Matériaux' : '', item, co2eItem?.co2e || 0);
     });
 
     data.manufacturing?.forEach((item, index) => {
@@ -489,7 +506,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     // Total row
     tableHtml += `
             <tr>
-                <td colspan="6" style="${thStyle}">Total</td>
+                <td colspan="10" style="${thStyle}">Total</td>
                 <td style="${thStyle} text-align: right;" class="num">${calculatedTotals.grandTotal.toFixed(2)}</td>
             </tr>
     `;
