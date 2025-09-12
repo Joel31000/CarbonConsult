@@ -506,23 +506,23 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     });
 
     data.manufacturing?.forEach((item, index) => {
-        const co2e = calculatedDetails.manufacturing.find(d => d.name === item.process)?.co2e || 0;
-        addRow(index === 0 ? 'Fabrication' : '', item, co2e);
+        const co2eItem = calculatedDetails.manufacturing.find(d => d.name === item.process);
+        addRow(index === 0 ? 'Fabrication' : '', item, co2eItem?.co2e || 0);
     });
 
     data.implementation?.forEach((item, index) => {
-        const co2e = calculatedDetails.implementation.find(d => d.name === item.process)?.co2e || 0;
-        addRow(index === 0 ? 'Mise en œuvre' : '', item, co2e);
+        const co2eItem = calculatedDetails.implementation.find(d => d.name === item.process);
+        addRow(index === 0 ? 'Mise en œuvre' : '', item, co2eItem?.co2e || 0);
     });
 
     data.transport?.forEach((item, index) => {
-        const co2e = calculatedDetails.transport.find(d => d.name === item.mode)?.co2e || 0;
-        addRow(index === 0 ? 'Transport' : '', item, co2e);
+        const co2eItem = calculatedDetails.transport.find(d => d.name === item.mode);
+        addRow(index === 0 ? 'Transport' : '', item, co2eItem?.co2e || 0);
     });
 
     data.endOfLife?.forEach((item, index) => {
-        const co2e = calculatedDetails.endOfLife.find(d => d.name === item.method)?.co2e || 0;
-        addRow(index === 0 ? 'Fin de vie' : '', item, co2e);
+        const co2eItem = calculatedDetails.endOfLife.find(d => d.name === item.method);
+        addRow(index === 0 ? 'Fin de vie' : '', item, co2eItem?.co2e || 0);
     });
 
     // Total row
@@ -607,10 +607,10 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                             material: material,
                             quantity: Number(row['Quantité (kg ou m³)']) || 0,
                             concreteType: concreteType,
-                            cementMass: Number(row['Masse ciment (kg/m³)']) || 0,
+                            cementMass: Number(row['Masse ciment (kg/m³)']) || undefined,
                             isReinforced: isReinforced,
-                            rebarMass: Number(row['Masse de ferraillage (kg/m³)']) || 0,
-                            rebarFactor: Number(row["Facteur d'émission armature (kg CO²e)"]) || 0,
+                            rebarMass: Number(row['Masse de ferraillage (kg/m³)']) || undefined,
+                            rebarFactor: Number(row["Facteur d'émission armature (kg CO²e)"]) || undefined,
                         });
                         break;
                     }
@@ -636,7 +636,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                     case 'Fin de vie':
                          newValues.endOfLife.push({
                             method: methodName,
-                            weight: Number(row['Poids (tonnes)']) || 0,
+                            weight: Number(row['Quantité (kg ou m³)']) || 0,
                         });
                         break;
                 }
@@ -749,9 +749,9 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                           material: "", 
                           quantity: 0,
                           concreteType: "",
-                          cementMass: 0,
+                          cementMass: undefined,
                           isReinforced: false,
-                          rebarMass: 0,
+                          rebarMass: undefined,
                           rebarFactor: 1.2
                         })}
                       >
@@ -1264,3 +1264,5 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </Form>
   );
 }
+
+    
