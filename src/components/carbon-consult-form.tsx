@@ -441,19 +441,33 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         let rebarMassDisplay = '';
         let methodName = item.material || item.process || item.mode || item.method;
         
-        if (item.material === "Béton") {
-            methodName = item.concreteType || "Béton";
-            const concreteFactor = emissionFactors.concrete.find(c => c.name === item.concreteType)?.factor || 0;
-            emissionFactorDisplay = concreteFactor.toFixed(3);
-            cementMassDisplay = (Number(item.cementMass) || 0).toFixed(2);
-            if (item.isReinforced) {
-                methodName += " armé";
-                rebarFactorDisplay = (Number(item.rebarFactor) || 0).toFixed(2);
-                rebarMassDisplay = (Number(item.rebarMass) || 0).toFixed(2);
+        if (rubrique === 'Matériaux' || (rubrique === '' && item.material)) {
+            if (item.material === "Béton") {
+                methodName = item.concreteType || "Béton";
+                const concreteFactor = emissionFactors.concrete.find(c => c.name === item.concreteType)?.factor || 0;
+                emissionFactorDisplay = concreteFactor.toFixed(3);
+                cementMassDisplay = (Number(item.cementMass) || 0).toFixed(2);
+                if (item.isReinforced) {
+                    methodName += " armé";
+                    rebarFactorDisplay = (Number(item.rebarFactor) || 0).toFixed(2);
+                    rebarMassDisplay = (Number(item.rebarMass) || 0).toFixed(2);
+                }
+            } else if (item.material) {
+                const factor = emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
+                emissionFactorDisplay = factor.toFixed(2);
             }
-        } else if (item.material) {
-             const factor = emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
-             emissionFactorDisplay = factor.toFixed(2);
+        } else if (rubrique === 'Fabrication' || (rubrique === '' && item.process && data.manufacturing.includes(item))) {
+            const factor = emissionFactors.manufacturing.find(m => m.name === item.process)?.factor || 0;
+            emissionFactorDisplay = factor.toFixed(2);
+        } else if (rubrique === 'Mise en œuvre' || (rubrique === '' && item.process && data.implementation.includes(item))) {
+            const factor = emissionFactors.implementation.find(m => m.name === item.process)?.factor || 0;
+            emissionFactorDisplay = factor.toFixed(2);
+        } else if (rubrique === 'Transport' || (rubrique === '' && item.mode)) {
+            const factor = emissionFactors.transport.find(m => m.name === item.mode)?.factor || 0;
+            emissionFactorDisplay = factor.toFixed(4);
+        } else if (rubrique === 'Fin de vie' || (rubrique === '' && item.method)) {
+            const factor = emissionFactors.endOfLife.find(m => m.name === item.method)?.factor || 0;
+            emissionFactorDisplay = factor.toFixed(2);
         }
 
         tableHtml += `
@@ -479,7 +493,8 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
             name = item.concreteType || "Béton";
             if (item.isReinforced) name += " armé";
         }
-        const co2eItem = calculatedDetails.rawMaterials.find(d => d.name === name);
+        // Find the matching item in calculatedDetails, which might have a different name
+        const co2eItem = calculatedDetails.rawMaterials.find(d => d.name === name || (item.material !== "Béton" && d.name === item.material));
         addRow(index === 0 ? 'Matériaux' : '', item, co2eItem?.co2e || 0);
     });
 
