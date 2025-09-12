@@ -64,7 +64,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { saveSubmission } from "@/lib/actions";
 import { emissionFactors } from "@/lib/data";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { SuggestionResponse } from "@/ai/flows/suggest-carbon-improvements";
@@ -268,7 +267,6 @@ const TotalsDisplay = ({
 
 export function CarbonConsultForm({ consultationLabel }: { consultationLabel: string }) {
   const { toast } = useToast();
-  const [isSubmitPending, startSubmitTransition] = useTransition();
   const [isSuggestionPending, startSuggestionTransition] = useTransition();
   const [suggestion, setSuggestion] = useState<SuggestionResponse | null>(null);
 
@@ -493,8 +491,14 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
             name = item.concreteType || "Béton";
             if (item.isReinforced) name += " armé";
         }
-        // Find the matching item in calculatedDetails, which might have a different name
-        const co2eItem = calculatedDetails.rawMaterials.find(d => d.name === name || (item.material !== "Béton" && d.name === item.material));
+        
+        const co2eItem = calculatedDetails.rawMaterials.find(d => {
+            if (item.material === "Béton") {
+                return d.name === name;
+            }
+            return d.name === item.material;
+        });
+
         addRow(index === 0 ? 'Matériaux' : '', item, co2eItem?.co2e || 0);
     });
 
@@ -593,30 +597,9 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     });
   };
 
-
-  const onSubmit = (values: FormValues) => {
-    startSubmitTransition(async () => {
-      const result = await saveSubmission(values);
-      if (result.success) {
-        toast({
-          title: "Soumission enregistrée",
-          description: "Vos données d'empreinte carbone ont été enregistrées.",
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Échec de l'enregistrement",
-          description:
-            "Une erreur s'est produite lors de l'enregistrement de votre soumission. Veuillez réessayer.",
-        });
-      }
-    });
-  };
-
   return (
     <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
+      <div
         className="grid w-full grid-cols-1 gap-8 lg:grid-cols-3"
       >
         <div className="lg:col-span-2 flex flex-col gap-8">
@@ -1152,13 +1135,11 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                   <FileSpreadsheet className="mr-2 h-4 w-4" />
                   Générer le bilan (XLS)
                 </Button>
-                <Button type="submit" disabled={isSubmitPending}>
-                  {isSubmitPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Enregistrer la soumission
-                </Button>
             </div>
         </div>
-      </form>
+      </div>
     </Form>
   );
 }
+
+    

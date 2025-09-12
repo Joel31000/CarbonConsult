@@ -12,5 +12,6 @@ export async function saveSubmission(data: unknown) {
   await new Promise((resolve) => setTimeout(resolve, 1000));
   return { success: true, message: "Soumission enregistrée avec succès !" };
 }
+    
 
     
