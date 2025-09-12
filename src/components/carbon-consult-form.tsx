@@ -18,9 +18,10 @@ import {
   Truck,
   MessageSquare,
   Sparkles,
+  FileUp,
 } from "lucide-react";
 import { Construction, FileSpreadsheet } from "@/components/icons";
-import React, { useMemo, useState, useTransition } from "react";
+import React, { useMemo, useState, useTransition, useRef } from "react";
 import {
   Bar,
   BarChart,
@@ -31,6 +32,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import * as XLSX from 'xlsx';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -269,6 +271,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
   const { toast } = useToast();
   const [isSuggestionPending, startSuggestionTransition] = useTransition();
   const [suggestion, setSuggestion] = useState<SuggestionResponse | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -431,7 +434,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         const quantityDisplay = !isNaN(qVal) && item.quantity !== undefined ? qVal.toFixed(2) : '';
         const duration = !isNaN(dur) && item.duration !== undefined ? dur.toFixed(2) : '';
         const distance = !isNaN(dist) && item.distance !== undefined ? dist.toFixed(2) : '';
-        const weightTonnes = !isNaN(wVal) && item.weight !== undefined && item.distance !== undefined ? wVal.toFixed(2) : '';
+        const weightDisplay = !isNaN(wVal) && item.weight !== undefined ? wVal.toFixed(2) : '';
         
         let emissionFactorDisplay = '';
         let cementMassDisplay = '';
@@ -479,7 +482,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                 <td style="${numStyle}" class="num">${rebarMassDisplay}</td>
                 <td style="${numStyle}" class="num">${duration}</td>
                 <td style="${numStyle}" class="num">${distance}</td>
-                <td style="${numStyle}" class="num">${weightTonnes}</td>
+                <td style="${numStyle}" class="num">${weightDisplay}</td>
                 <td style="${numStyle}" class="num">${co2e.toFixed(2)}</td>
             </tr>
         `;
@@ -493,10 +496,10 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         }
         
         const co2eItem = calculatedDetails.rawMaterials.find(d => {
-            if (item.material === "Béton") {
-                return d.name === name;
-            }
-            return d.name === item.material;
+            if (d.name === name) return true;
+            // Fallback for cases where name might slightly differ
+            if (item.material === "Béton" && d.name.startsWith(item.concreteType || '')) return true;
+            return false;
         });
 
         addRow(index === 0 ? 'Matériaux' : '', item, co2eItem?.co2e || 0);
@@ -549,6 +552,115 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         title: "Exportation réussie",
         description: "Le fichier du bilan carbone a été téléchargé.",
     });
+  };
+
+  const handleImportFromExcel = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = new Uint8Array(e.target?.result as ArrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const json: any[] = XLSX.utils.sheet_to_json(worksheet);
+
+            const newValues: FormValues = {
+                rawMaterials: [],
+                manufacturing: [],
+                implementation: [],
+                transport: [],
+                endOfLife: [],
+                explanatoryComments: form.getValues('explanatoryComments') // Conserver les commentaires
+            };
+
+            let currentSection = '';
+            json.forEach(row => {
+                const section = row['Rubriques']?.trim();
+                if (section) {
+                    currentSection = section;
+                }
+
+                const methodName = row['Méthodes']?.trim();
+                if (!methodName) return;
+
+                switch (currentSection) {
+                    case 'Matériaux': {
+                        let material = methodName;
+                        let concreteType;
+                        const isReinforced = methodName.includes('armé');
+                        if (isReinforced) {
+                             material = 'Béton';
+                             concreteType = methodName.replace(' armé', '').trim();
+                        } else if (emissionFactors.concrete.some(c => c.name === methodName)) {
+                            material = 'Béton';
+                            concreteType = methodName;
+                        } else if (!materialOptions.includes(methodName)) {
+                            // C'est probablement un type de béton qui n'a pas été marqué comme armé
+                            material = "Béton";
+                            concreteType = methodName;
+                        }
+
+                        newValues.rawMaterials.push({
+                            material: material,
+                            quantity: Number(row['Quantité (kg ou m³)']) || 0,
+                            concreteType: concreteType,
+                            cementMass: Number(row['Masse ciment (kg/m³)']) || 0,
+                            isReinforced: isReinforced,
+                            rebarMass: Number(row['Masse de ferraillage (kg/m³)']) || 0,
+                            rebarFactor: Number(row["Facteur d'émission armature (kg CO²e)"]) || 0,
+                        });
+                        break;
+                    }
+                    case 'Fabrication':
+                        newValues.manufacturing.push({
+                            process: methodName,
+                            duration: Number(row['Durée (heures)']) || 0,
+                        });
+                        break;
+                    case 'Mise en œuvre':
+                        newValues.implementation.push({
+                            process: methodName,
+                            duration: Number(row['Durée (heures)']) || 0,
+                        });
+                        break;
+                    case 'Transport':
+                        newValues.transport.push({
+                            mode: methodName,
+                            distance: Number(row['Distance (km)']) || 0,
+                            weight: Number(row['Poids (tonnes)']) || 0,
+                        });
+                        break;
+                    case 'Fin de vie':
+                         newValues.endOfLife.push({
+                            method: methodName,
+                            weight: Number(row['Poids (tonnes)']) || 0,
+                        });
+                        break;
+                }
+            });
+            form.reset(newValues);
+            toast({
+                title: "Importation réussie",
+                description: "Les données du fichier ont été chargées dans le formulaire.",
+            });
+        } catch (error) {
+            console.error("Erreur lors de l'importation du fichier:", error);
+            toast({
+                variant: 'destructive',
+                title: "Échec de l'importation",
+                description: "Le fichier est peut-être corrompu ou son format est incorrect.",
+            });
+        } finally {
+            // Réinitialiser le file input pour permettre une nouvelle importation du même fichier
+            if(fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
+        }
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   const handleGetSuggestions = () => {
@@ -1131,6 +1243,17 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         <div className="w-full print-container lg:col-span-1 flex flex-col gap-8">
             <TotalsDisplay totals={totals} details={details} consultationLabel={consultationLabel} />
             <div className="flex flex-col sm:flex-row justify-end gap-2 print:hidden">
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImportFromExcel}
+                    accept=".xlsx, .xls"
+                    className="hidden"
+                />
+                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                    <FileUp className="mr-2 h-4 w-4" />
+                    Importer bilan
+                </Button>
                 <Button type="button" variant="outline" onClick={handleExportToExcel}>
                   <FileSpreadsheet className="mr-2 h-4 w-4" />
                   Générer le bilan (XLS)
@@ -1141,5 +1264,3 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </Form>
   );
 }
-
-    
