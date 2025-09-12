@@ -571,8 +571,8 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         console.error("Erreur lors de la suggestion d'améliorations:", error);
         toast({
           variant: "destructive",
-          title: "Erreur de l'IA",
-          description: "Impossible d'obtenir des suggestions pour le moment.",
+          title: "Service IA indisponible",
+          description: "Le service est momentanément surchargé. Veuillez réessayer dans quelques instants.",
         });
       }
     });
@@ -1147,5 +1147,3 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </Form>
   );
 }
-
-    
