@@ -426,15 +426,25 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     `;
 
     const addRow = (rubrique: string, item: any, co2e: number) => {
-        const qVal = Number(item.quantity);
-        const dur = Number(item.duration);
-        const dist = Number(item.distance);
-        const wVal = Number(item.weight);
-
-        const quantityDisplay = !isNaN(qVal) && item.quantity !== undefined ? qVal.toFixed(2) : '';
-        const duration = !isNaN(dur) && item.duration !== undefined ? dur.toFixed(2) : '';
-        const distance = !isNaN(dist) && item.distance !== undefined ? dist.toFixed(2) : '';
-        const weightDisplay = !isNaN(wVal) && item.weight !== undefined ? wVal.toFixed(2) : '';
+        let quantityDisplay = '';
+        let duration = '';
+        let distance = '';
+        let weightDisplay = '';
+        
+        if (rubrique === 'Fin de vie' || (rubrique === '' && item.method)) {
+            const qVal = Number(item.weight);
+            quantityDisplay = !isNaN(qVal) && item.weight !== undefined ? qVal.toFixed(2) : '';
+        } else {
+            const qVal = Number(item.quantity);
+            const dur = Number(item.duration);
+            const dist = Number(item.distance);
+            const wVal = Number(item.weight);
+            
+            quantityDisplay = !isNaN(qVal) && item.quantity !== undefined ? qVal.toFixed(2) : '';
+            duration = !isNaN(dur) && item.duration !== undefined ? dur.toFixed(2) : '';
+            distance = !isNaN(dist) && item.distance !== undefined ? dist.toFixed(2) : '';
+            weightDisplay = !isNaN(wVal) && item.weight !== undefined ? wVal.toFixed(2) : '';
+        }
         
         let emissionFactorDisplay = '';
         let cementMassDisplay = '';
@@ -1264,5 +1274,3 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </Form>
   );
 }
-
-    
