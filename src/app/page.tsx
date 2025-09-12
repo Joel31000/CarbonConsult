@@ -97,13 +97,16 @@ export default function Home() {
                     CarbonConsult est une application mise à la disposition des fournisseurs pour calculer le bilan carbone de leurs offres lors des consultations.
                   </p>
                   <p>
-                    Le périmètre du calcul du bilan carbone est conforme à la méthodologie "Du berceau à la livraison" (Cradle-to-gate). Il prend en compte les postes : Matières, Fabrication et mise en œuvre, Transport et Fin de vie.
+                    Le périmètre du calcul du bilan carbone est conforme à la méthodologie d’analyse du cycle de vie (ACV). Il prend en compte les postes : Matériaux, Fabrication, Mise en œuvre, Transport et Fin de vie.
                   </p>
                   <p>
                     Le fournisseur implémente progressivement les différents postes qui vont s’additionner automatiquement. Le graphique du bilan carbone permet de visualiser les détails de la répartition de l’empreinte carbone par poste.
                   </p>
                   <p>
-                    Le fournisseur peut éditer le bilan de l’empreinte carbone au format PDF et le joindre ainsi aux autres documents constitutifs de son offre.
+                    Le fournisseur peut éditer le bilan de l’empreinte carbone au format PDF et générer un fichier excel du bilan détaillé carbone. Ces document doivent être joints aux autres documents constitutifs de son offre.
+                  </p>
+                  <p>
+                    Ces fichiers donnent tous les détails nécessaires au binôme technique, éventuellement associé à un ingénieur éco-conception pour vérifier et valider la cohérence du bilan carbone vis-à-vis du mode opératoire de l’offre technique.
                   </p>
                 </div>
               </DialogContent>
