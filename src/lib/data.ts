@@ -9,6 +9,10 @@ export const emissionFactors = {
     { name: "Papier/Carton", factor: 0.6, unit: "kg CO2e/kg" },
     { name: "Béton", factor: 0, unit: "kg CO2e/m³" }, // Le calcul est maintenant dynamique
     { name: "Bois (Source durable)", factor: 0.05, unit: "kg CO2e/kg" },
+    { name: "Canalisation PVC", factor: 2.47, unit: "kg CO2e/kg" },
+    { name: "Barre d'acier", factor: 2.21, unit: "kg CO2e/kg" },
+    { name: "Cuivre Classique", factor: 4.50, unit: "kg CO2e/kg" },
+    { name: "Cuivre recyclé", factor: 1.50, unit: "kg CO2e/kg" },
   ],
   concrete: [
     // Facteurs d'émission pour 1 tonne de ciment. Unité: tCO2eq/t de ciment
@@ -56,6 +60,9 @@ export const emissionFactors = {
     { name: "Compacteur", factor: 18.0, unit: "kg CO2e/hr" },
     { name: "Bulldozer", factor: 27.5, unit: "kg CO2e/hr" },
     { name: "Chargeuse", factor: 14.0, unit: "kg CO2e/hr" },
+    { name: "Marteau piqueur électrique (P : 2100 W)", factor: 0.11, unit: "kg CO2e/hr" },
+    { name: "Marteau piqueur pneumatique", factor: 15.80, unit: "kg CO2e/hr" },
+    { name: "Foreuse (1500 W)", factor: 0.04, unit: "kg CO2e/hr" },
   ],
   transport: [
     { name: "Route (Camion diesel)", factor: 0.1, unit: "kg CO2e/t-km" },
@@ -63,6 +70,9 @@ export const emissionFactors = {
     { name: "Rail", factor: 0.02, unit: "kg CO2e/t-km" },
     { name: "Mer", factor: 0.01, unit: "kg CO2e/t-km" },
     { name: "Air", factor: 0.6, unit: "kg CO2e/t-km" },
+    { name: "Hélicoptère Airbus H125", factor: 1.77, unit: "kg CO2e/t-km" },
+    { name: "Hélicoptère Bell 206 JetRanger", factor: 1.12, unit: "kg CO2e/t-km" },
+    { name: "Hélicoptère Robinson R44", factor: 0.67, unit: "kg CO2e/t-km" },
   ],
   endOfLife: [
     { name: "Mise en décharge", factor: 0.2, unit: "kg CO2e/kg" },
