@@ -514,11 +514,11 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         }
         
         const co2eItem = calculatedDetails.rawMaterials.find(d => {
-             // More robust matching for reinforced concrete
             if (item.material === "Béton") {
                 const baseName = item.concreteType || "Béton";
-                const expectedName = item.isReinforced ? `${baseName} armé` : baseName;
-                return d.name === expectedName;
+                let expectedName = baseName;
+                if(item.isReinforced) expectedName = `${baseName} armé`;
+                return d.name === expectedName && Math.abs(d.co2e - (calculateEmissions({rawMaterials: [item]} as any).totals.rawMaterials)) < 0.01;
             }
             return d.name === item.material;
         });
@@ -772,9 +772,9 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                           material: "", 
                           quantity: 0,
                           concreteType: "",
-                          cementMass: undefined,
+                          cementMass: 0,
                           isReinforced: false,
-                          rebarMass: undefined,
+                          rebarMass: 0,
                           rebarFactor: 1.2
                         })}
                       >
@@ -1287,5 +1287,3 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </Form>
   );
 }
-
-    
