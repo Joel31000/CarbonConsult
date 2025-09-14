@@ -47,7 +47,7 @@ export const emissionFactors = {
   manufacturing: [
     { name: "Usinage", factor: 5.0, unit: "kg CO2e/hr" },
     { name: "Soudage", factor: 0.26, unit: "kg CO2e/hr" },
-    { name: "Peinture", factor: 3.65, unit: "kg CO2e/hr" },
+    { name: "Peinture", factor: 3.65, unit: "kg CO2e/kg" },
     { name: "Impression 3D (Plastique)", factor: 0.01, unit: "kg CO2e/hr" },
   ],
   implementation: [

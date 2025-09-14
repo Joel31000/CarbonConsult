@@ -88,7 +88,7 @@ const formSchema = z.object({
   manufacturing: z.array(
     z.object({
       process: z.string().min(1, "Veuillez sélectionner un processus."),
-      duration: z.coerce.number().min(0.01, "La durée doit être supérieure à 0."),
+      value: z.coerce.number().min(0.01, "La valeur doit être supérieure à 0."),
     })
   ),
   implementation: z.array(
@@ -308,6 +308,8 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
 
   const watchedValues = useWatch({ control: form.control });
   const watchedRawMaterials = useWatch({ control: form.control, name: "rawMaterials" });
+  const watchedManufacturing = useWatch({ control: form.control, name: "manufacturing" });
+
 
   const calculateEmissions = (values: FormValues) => {
     const rmDetails = values.rawMaterials?.map(item => {
@@ -344,7 +346,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     
     const mfgDetails = values.manufacturing?.map(item => {
       const factor = emissionFactors.manufacturing.find(p => p.name === item.process)?.factor || 0;
-      return { name: item.process || "Inconnu", co2e: (item.duration || 0) * factor };
+      return { name: item.process || "Inconnu", co2e: (item.value || 0) * factor };
     }).filter(item => item.co2e > 0) || [];
 
     const implDetails = values.implementation?.map(item => {
@@ -428,32 +430,16 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         let quantityDisplay = '';
         let unitDisplay = '';
         let weightDisplay = '';
-        
-        if (rubrique === 'Fin de vie' || (rubrique === '' && item.method)) {
-            quantityDisplay = (Number(item.weight) || 0).toFixed(2);
-            unitDisplay = 'kg';
-        } else if (rubrique === 'Matériaux' || (rubrique === '' && item.material)) {
-            quantityDisplay = (Number(item.quantity) || 0).toFixed(2);
-            unitDisplay = item.material === 'Béton' ? 'm³' : 'kg';
-        } else if (rubrique === 'Fabrication' || (rubrique === '' && item.process && data.manufacturing.includes(item))) {
-            quantityDisplay = (Number(item.duration) || 0).toFixed(2);
-            unitDisplay = 'H';
-        } else if (rubrique === 'Mise en œuvre' || (rubrique === '' && item.process && data.implementation.includes(item))) {
-            quantityDisplay = (Number(item.duration) || 0).toFixed(2);
-            unitDisplay = 'H';
-        } else if (rubrique === 'Transport' || (rubrique === '' && item.mode)) {
-            quantityDisplay = (Number(item.distance) || 0).toFixed(2);
-            unitDisplay = 'km';
-            weightDisplay = (Number(item.weight) || 0).toFixed(2);
-        }
-        
+        let methodName = item.material || item.process || item.mode || item.method;
+
         let emissionFactorDisplay = '';
         let cementMassDisplay = '';
         let rebarFactorDisplay = '';
         let rebarMassDisplay = '';
-        let methodName = item.material || item.process || item.mode || item.method;
         
-        if (rubrique === 'Matériaux' || (rubrique === '' && item.material)) {
+        if (rubrique === 'Matériaux') {
+            quantityDisplay = (Number(item.quantity) || 0).toFixed(2);
+            unitDisplay = item.material === 'Béton' ? 'm³' : 'kg';
             if (item.material === "Béton") {
                 methodName = item.concreteType || "Béton";
                 const concreteFactor = emissionFactors.concrete.find(c => c.name === item.concreteType)?.factor || 0;
@@ -468,26 +454,27 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                 const factor = emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
                 emissionFactorDisplay = factor.toFixed(2);
             }
-        } else if (rubrique === 'Fabrication' || (rubrique === '' && item.process && data.manufacturing.includes(item))) {
-            const factor = emissionFactors.manufacturing.find(m => m.name === item.process)?.factor || 0;
-            emissionFactorDisplay = factor.toFixed(2);
-        } else if (rubrique === 'Mise en œuvre' || (rubrique === '' && item.process && data.implementation.includes(item))) {
+        } else if (rubrique === 'Fabrication') {
+            quantityDisplay = (Number(item.value) || 0).toFixed(2);
+            const processData = emissionFactors.manufacturing.find(m => m.name === item.process);
+            unitDisplay = processData?.unit.endsWith('/hr') ? 'H' : 'kg';
+            emissionFactorDisplay = (processData?.factor || 0).toFixed(2);
+        } else if (rubrique === 'Mise en œuvre') {
+            quantityDisplay = (Number(item.duration) || 0).toFixed(2);
+            unitDisplay = 'H';
             const factor = emissionFactors.implementation.find(m => m.name === item.process)?.factor || 0;
             emissionFactorDisplay = factor.toFixed(2);
-        } else if (rubrique === 'Transport' || (rubrique === '' && item.mode)) {
+        } else if (rubrique === 'Transport') {
+            quantityDisplay = (Number(item.distance) || 0).toFixed(2);
+            unitDisplay = 'km';
+            weightDisplay = (Number(item.weight) || 0).toFixed(2);
             const factor = emissionFactors.transport.find(m => m.name === item.mode)?.factor || 0;
             emissionFactorDisplay = factor.toFixed(4);
-        } else if (rubrique === 'Fin de vie' || (rubrique === '' && item.method)) {
+        } else if (rubrique === 'Fin de vie') {
+            quantityDisplay = (Number(item.weight) || 0).toFixed(2);
+            unitDisplay = 'kg';
             const factor = emissionFactors.endOfLife.find(m => m.name === item.method)?.factor || 0;
             emissionFactorDisplay = factor.toFixed(2);
-             if (item.method) {
-                const eolFactor = emissionFactors.endOfLife.find(e => e.name === item.method);
-                if (eolFactor && eolFactor.unit.includes('/t-km')) { // Hypothetical example
-                    unitDisplay = 't';
-                } else {
-                    unitDisplay = 'kg';
-                }
-            }
         }
 
         tableHtml += `
@@ -507,43 +494,28 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     };
     
     data.rawMaterials?.forEach((item, index) => {
-        let name = item.material;
-        if (item.material === "Béton") {
-            name = item.concreteType || "Béton";
-            if (item.isReinforced) name += " armé";
-        }
-        
-        const co2eItem = calculatedDetails.rawMaterials.find(d => {
-            if (item.material === "Béton") {
-                const baseName = item.concreteType || "Béton";
-                let expectedName = baseName;
-                if(item.isReinforced) expectedName = `${baseName} armé`;
-                return d.name === expectedName && Math.abs(d.co2e - (calculateEmissions({rawMaterials: [item]} as any).totals.rawMaterials)) < 0.01;
-            }
-            return d.name === item.material;
-        });
-
-        addRow(index === 0 ? 'Matériaux' : '', item, co2eItem?.co2e || 0);
+        const co2eItem = calculatedDetails.rawMaterials.find((d, i) => i === index);
+        addRow('Matériaux', item, co2eItem?.co2e || 0);
     });
 
     data.manufacturing?.forEach((item, index) => {
-        const co2eItem = calculatedDetails.manufacturing.find(d => d.name === item.process);
-        addRow(index === 0 ? 'Fabrication' : '', item, co2eItem?.co2e || 0);
+        const co2eItem = calculatedDetails.manufacturing.find((d, i) => i === index);
+        addRow('Fabrication', item, co2eItem?.co2e || 0);
     });
 
     data.implementation?.forEach((item, index) => {
-        const co2eItem = calculatedDetails.implementation.find(d => d.name === item.process);
-        addRow(index === 0 ? 'Mise en œuvre' : '', item, co2eItem?.co2e || 0);
+        const co2eItem = calculatedDetails.implementation.find((d, i) => i === index);
+        addRow('Mise en œuvre', item, co2eItem?.co2e || 0);
     });
 
     data.transport?.forEach((item, index) => {
-        const co2eItem = calculatedDetails.transport.find(d => d.name === item.mode);
-        addRow(index === 0 ? 'Transport' : '', item, co2eItem?.co2e || 0);
+        const co2eItem = calculatedDetails.transport.find((d, i) => i === index);
+        addRow('Transport', item, co2eItem?.co2e || 0);
     });
 
     data.endOfLife?.forEach((item, index) => {
-        const co2eItem = calculatedDetails.endOfLife.find(d => d.name === item.method);
-        addRow(index === 0 ? 'Fin de vie' : '', item, co2eItem?.co2e || 0);
+        const co2eItem = calculatedDetails.endOfLife.find((d, i) => i === index);
+        addRow('Fin de vie', item, co2eItem?.co2e || 0);
     });
 
     // Total row
@@ -586,7 +558,10 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
             const workbook = XLSX.read(data, { type: 'array' });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
-            const json: any[] = XLSX.utils.sheet_to_json(worksheet);
+            const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+            const headers = json[0] as string[];
+            const dataRows = json.slice(1);
 
             const newValues: FormValues = {
                 rawMaterials: [],
@@ -596,19 +571,25 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                 endOfLife: [],
                 explanatoryComments: form.getValues('explanatoryComments') // Conserver les commentaires
             };
+            
+            const headerMap: { [key: string]: number } = {};
+            headers.forEach((h, i) => {
+                headerMap[h] = i;
+            });
+
 
             let currentSection = '';
-            json.forEach(row => {
-                const section = row['Rubriques']?.trim();
+            dataRows.forEach(row => {
+                const section = (row[headerMap['Rubriques']] || currentSection)?.trim();
                 if (section && section !== 'Total') {
                     currentSection = section;
                 }
 
-                const methodName = row['Méthodes']?.trim();
+                const methodName = (row[headerMap['Méthodes']])?.trim();
                 if (!methodName) return;
                 
-                const quantity = Number(row['Quantité']) || 0;
-
+                const quantity = Number(row[headerMap['Quantité']]) || 0;
+                
                 switch (currentSection) {
                     case 'Matériaux': {
                         let material = methodName;
@@ -621,7 +602,6 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                             material = 'Béton';
                             concreteType = methodName;
                         } else if (!materialOptions.includes(methodName) && concreteOptions.includes(methodName)) {
-                            // C'est probablement un type de béton qui n'a pas été marqué comme armé
                             material = "Béton";
                             concreteType = methodName;
                         }
@@ -630,17 +610,17 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                             material: material,
                             quantity: quantity,
                             concreteType: concreteType,
-                            cementMass: Number(row['Masse ciment (kg/m³)']) || undefined,
+                            cementMass: Number(row[headerMap['Masse ciment (kg/m³)']]) || 0,
                             isReinforced: isReinforced,
-                            rebarMass: Number(row['Masse de ferraillage (kg/m³)']) || undefined,
-                            rebarFactor: Number(row["Facteur d'émission armature (kg CO²e)"]) || undefined,
+                            rebarMass: Number(row[headerMap['Masse de ferraillage (kg/m³)']]) || 0,
+                            rebarFactor: Number(row[headerMap["Facteur d'émission armature (kg CO²e)"]]) || 0,
                         });
                         break;
                     }
                     case 'Fabrication':
                         newValues.manufacturing.push({
                             process: methodName,
-                            duration: quantity,
+                            value: quantity,
                         });
                         break;
                     case 'Mise en œuvre':
@@ -653,7 +633,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                         newValues.transport.push({
                             mode: methodName,
                             distance: quantity,
-                            weight: Number(row['Poids (tonnes)']) || 0,
+                            weight: Number(row[headerMap['Poids (tonnes)']]) || 0,
                         });
                         break;
                     case 'Fin de vie':
@@ -677,7 +657,6 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                 description: "Le fichier est peut-être corrompu ou son format est incorrect.",
             });
         } finally {
-            // Réinitialiser le file input pour permettre une nouvelle importation du même fichier
             if(fileInputRef.current) {
                 fileInputRef.current.value = "";
             }
@@ -943,57 +922,64 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => mfgAppend({ process: "", duration: 0 })}
+                        onClick={() => mfgAppend({ process: "", value: 0 })}
                       >
                         <PlusCircle className="mr-2 h-4 w-4" /> Ajouter un processus
                       </Button>
                     }
                   >
                       {mfgFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucun processus ajouté.</p>}
-                      {mfgFields.map((field, index) => (
-                      <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          <FormField
-                            control={form.control}
-                            name={`manufacturing.${index}.process`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Processus</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Sélectionnez un processus" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {processOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name={`manufacturing.${index}.duration`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Durée (heures)</FormLabel>
-                                <FormControl>
-                                  <Input type="number" placeholder="ex: 50" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                          <div className="pt-8">
-                          <Button type="button" variant="ghost" size="icon" onClick={() => mfgRemove(index)}>
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      {mfgFields.map((field, index) => {
+                        const selectedProcess = watchedManufacturing[index]?.process;
+                        const isPaint = selectedProcess === 'Peinture';
+                        const label = isPaint ? 'Quantité (kg)' : 'Durée (heures)';
+                        const placeholder = isPaint ? 'ex: 10' : 'ex: 50';
+
+                        return (
+                          <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <FormField
+                                control={form.control}
+                                name={`manufacturing.${index}.process`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Processus</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Sélectionnez un processus" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {processOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`manufacturing.${index}.value`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>{label}</FormLabel>
+                                    <FormControl>
+                                      <Input type="number" placeholder={placeholder} {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                              <div className="pt-8">
+                              <Button type="button" variant="ghost" size="icon" onClick={() => mfgRemove(index)}>
+                                <Trash2 className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </div>
+                          </div>
+                        )
+                      })}
                   </SectionCard>
                 </TabsContent>
 
