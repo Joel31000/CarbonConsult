@@ -126,7 +126,7 @@ export default function Home() {
               onChange={(e) => setConsultationLabel(e.target.value)}
             />
           </div>
-          <h1 className="font-headline text-3xl font-semibold print:hidden">
+          <h1 className="font-headline text-2xl font-semibold print:hidden">
             Données d'Entrée
           </h1>
         </div>
