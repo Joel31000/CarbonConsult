@@ -77,6 +77,7 @@ const formSchema = z.object({
     z.object({
       material: z.string().min(1, "Veuillez sélectionner un matériau."),
       quantity: z.coerce.number().min(0.01, "La quantité doit être supérieure à 0."),
+      comment: z.string().optional(),
       // Champs spécifiques au béton
       concreteType: z.string().optional(),
       cementMass: z.coerce.number().optional(),
@@ -89,12 +90,14 @@ const formSchema = z.object({
     z.object({
       process: z.string().min(1, "Veuillez sélectionner un processus."),
       value: z.coerce.number().min(0.01, "La valeur doit être supérieure à 0."),
+      comment: z.string().optional(),
     })
   ),
   implementation: z.array(
     z.object({
       process: z.string().min(1, "Veuillez sélectionner un processus."),
       duration: z.coerce.number().min(0.01, "La durée doit être supérieure à 0."),
+      comment: z.string().optional(),
     })
   ),
   transport: z.array(
@@ -102,12 +105,14 @@ const formSchema = z.object({
       mode: z.string().min(1, "Veuillez sélectionner un mode de transport."),
       distance: z.coerce.number().min(0.1, "La distance doit être supérieure à 0."),
       weight: z.coerce.number().min(0.01, "Le poids doit être supérieur à 0."),
+      comment: z.string().optional(),
     })
   ),
   endOfLife: z.array(
     z.object({
       method: z.string().min(1, "Veuillez sélectionner une méthode."),
       weight: z.coerce.number().min(0.01, "Le poids doit être supérieur à 0."),
+      comment: z.string().optional(),
     })
   ),
   explanatoryComments: z.string().optional(),
@@ -421,6 +426,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                 <th style="${thStyle}">Masse de ferraillage (kg/m³)</th>
                 <th style="${thStyle}">Poids (tonnes)</th>
                 <th style="${thStyle}">Kg CO²e</th>
+                <th style="${thStyle}">Commentaires explicatifs</th>
               </tr>
             </thead>
             <tbody>
@@ -431,6 +437,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         let unitDisplay = '';
         let weightDisplay = '';
         let methodName = item.material || item.process || item.mode || item.method;
+        let commentDisplay = item.comment || '';
 
         let emissionFactorDisplay = '';
         let cementMassDisplay = '';
@@ -489,6 +496,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                 <td style="${numStyle}" class="num">${rebarMassDisplay}</td>
                 <td style="${numStyle}" class="num">${weightDisplay}</td>
                 <td style="${numStyle}" class="num">${co2e.toFixed(2)}</td>
+                <td style="${tdStyle}">${commentDisplay}</td>
             </tr>
         `;
     };
@@ -523,6 +531,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
             <tr>
                 <td colspan="9" style="${thStyle}">Total</td>
                 <td style="${thStyle} text-align: right;" class="num">${calculatedTotals.grandTotal.toFixed(2)}</td>
+                <td style="${thStyle}"></td>
             </tr>
     `;
 
@@ -569,14 +578,13 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                 implementation: [],
                 transport: [],
                 endOfLife: [],
-                explanatoryComments: form.getValues('explanatoryComments') // Conserver les commentaires
+                explanatoryComments: form.getValues('explanatoryComments')
             };
             
             const headerMap: { [key: string]: number } = {};
             headers.forEach((h, i) => {
                 headerMap[h] = i;
             });
-
 
             let currentSection = '';
             dataRows.forEach(row => {
@@ -589,6 +597,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                 if (!methodName) return;
                 
                 const quantity = Number(row[headerMap['Quantité']]) || 0;
+                const comment = row[headerMap['Commentaires explicatifs']] || '';
                 
                 switch (currentSection) {
                     case 'Matériaux': {
@@ -609,6 +618,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                         newValues.rawMaterials.push({
                             material: material,
                             quantity: quantity,
+                            comment: comment,
                             concreteType: concreteType,
                             cementMass: Number(row[headerMap['Masse ciment (kg/m³)']]) || 0,
                             isReinforced: isReinforced,
@@ -621,12 +631,14 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                         newValues.manufacturing.push({
                             process: methodName,
                             value: quantity,
+                            comment: comment,
                         });
                         break;
                     case 'Mise en œuvre':
                         newValues.implementation.push({
                             process: methodName,
                             duration: quantity,
+                            comment: comment,
                         });
                         break;
                     case 'Transport':
@@ -634,12 +646,14 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                             mode: methodName,
                             distance: quantity,
                             weight: Number(row[headerMap['Poids (tonnes)']]) || 0,
+                            comment: comment,
                         });
                         break;
                     case 'Fin de vie':
                          newValues.endOfLife.push({
                             method: methodName,
                             weight: quantity,
+                            comment: comment,
                         });
                         break;
                 }
@@ -680,6 +694,14 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         return;
       }
       
+      const allComments = [
+        ...values.rawMaterials.map(i => i.comment),
+        ...values.manufacturing.map(i => i.comment),
+        ...values.implementation.map(i => i.comment),
+        ...values.transport.map(i => i.comment),
+        ...values.endOfLife.map(i => i.comment)
+      ].filter(Boolean).join('; ');
+
       try {
         const result = await suggestImprovements({
           summary: {
@@ -697,7 +719,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
             transport: details.transport.map(m => `${m.name}: ${m.co2e.toFixed(2)} kgCO2e`),
             endOfLife: details.endOfLife.map(m => `${m.name}: ${m.co2e.toFixed(2)} kgCO2e`),
           },
-          comments: values.explanatoryComments || ""
+          comments: allComments
         });
         setSuggestion(result);
       } catch (error) {
@@ -750,6 +772,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                         onClick={() => rmAppend({ 
                           material: "", 
                           quantity: 0,
+                          comment: "",
                           concreteType: "",
                           cementMass: 0,
                           isReinforced: false,
@@ -834,7 +857,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                                   <FormItem>
                                     <FormLabel>Masse ciment (kg/m³)</FormLabel>
                                     <FormControl>
-                                      <Input type="number" placeholder="ex: 300" {...field} />
+                                      <Input type="number" placeholder="ex: 300" {...field} value={field.value || ''} />
                                     </FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -872,7 +895,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                                   <FormItem>
                                     <FormLabel>Masse de ferraillage (kg/m³)</FormLabel>
                                     <FormControl>
-                                      <Input type="number" placeholder="ex: 100" {...field} />
+                                      <Input type="number" placeholder="ex: 100" {...field} value={field.value || ''} />
                                     </FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -901,6 +924,19 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                             </div>
                           )}
 
+                          <FormField
+                            control={form.control}
+                            name={`rawMaterials.${index}.comment`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Commentaires</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Hypothèses, détails..." {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         </div>
                         <div className="pt-8">
                           <Button type="button" variant="ghost" size="icon" onClick={() => rmRemove(index)}>
@@ -922,7 +958,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => mfgAppend({ process: "", value: 0 })}
+                        onClick={() => mfgAppend({ process: "", value: 0, comment: "" })}
                       >
                         <PlusCircle className="mr-2 h-4 w-4" /> Ajouter un processus
                       </Button>
@@ -936,36 +972,51 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                         const placeholder = isPaint ? 'ex: 10' : 'ex: 50';
 
                         return (
-                          <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                              <FormField
-                                control={form.control}
-                                name={`manufacturing.${index}.process`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Processus</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
+                            <div className="flex flex-col gap-4">
+                              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <FormField
+                                  control={form.control}
+                                  name={`manufacturing.${index}.process`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Processus</FormLabel>
+                                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Sélectionnez un processus" />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          {processOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                                        </SelectContent>
+                                      </Select>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name={`manufacturing.${index}.value`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>{label}</FormLabel>
                                       <FormControl>
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Sélectionnez un processus" />
-                                        </SelectTrigger>
+                                        <Input type="number" placeholder={placeholder} {...field} />
                                       </FormControl>
-                                      <SelectContent>
-                                        {processOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                                      </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
                               <FormField
                                 control={form.control}
-                                name={`manufacturing.${index}.value`}
+                                name={`manufacturing.${index}.comment`}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>{label}</FormLabel>
+                                    <FormLabel>Commentaires</FormLabel>
                                     <FormControl>
-                                      <Input type="number" placeholder={placeholder} {...field} />
+                                      <Input placeholder="Hypothèses, détails..." {...field} />
                                     </FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -993,7 +1044,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => implAppend({ process: "", duration: 0 })}
+                        onClick={() => implAppend({ process: "", duration: 0, comment: "" })}
                       >
                         <PlusCircle className="mr-2 h-4 w-4" /> Ajouter un processus
                       </Button>
@@ -1001,36 +1052,51 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                   >
                     {implFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucun processus ajouté.</p>}
                     {implFields.map((field, index) => (
-                      <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          <FormField
-                            control={form.control}
-                            name={`implementation.${index}.process`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Processus</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
+                        <div className="flex flex-col gap-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <FormField
+                              control={form.control}
+                              name={`implementation.${index}.process`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Processus</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Sélectionnez un processus" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {implementationOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`implementation.${index}.duration`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Durée (heures)</FormLabel>
                                   <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Sélectionnez un processus" />
-                                    </SelectTrigger>
+                                    <Input type="number" placeholder="ex: 50" {...field} />
                                   </FormControl>
-                                  <SelectContent>
-                                    {implementationOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
                           <FormField
                             control={form.control}
-                            name={`implementation.${index}.duration`}
+                            name={`implementation.${index}.comment`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Durée (heures)</FormLabel>
+                                <FormLabel>Commentaires</FormLabel>
                                 <FormControl>
-                                  <Input type="number" placeholder="ex: 50" {...field} />
+                                  <Input placeholder="Hypothèses, détails..." {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -1057,7 +1123,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => tptAppend({ mode: "", distance: 0, weight: 0 })}
+                        onClick={() => tptAppend({ mode: "", distance: 0, weight: 0, comment: "" })}
                       >
                         <PlusCircle className="mr-2 h-4 w-4" /> Ajouter une étape
                       </Button>
@@ -1066,48 +1132,63 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                     {tptFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucune étape de transport ajoutée.</p>}
                     {tptFields.map((field, index) => (
                       <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                          <FormField
-                            control={form.control}
-                            name={`transport.${index}.mode`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Mode</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                         <div className="flex flex-col gap-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                            <FormField
+                              control={form.control}
+                              name={`transport.${index}.mode`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Mode</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Sélectionnez un mode" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {transportOptions.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`transport.${index}.distance`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Distance (km)</FormLabel>
                                   <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Sélectionnez un mode" />
-                                    </SelectTrigger>
+                                    <Input type="number" placeholder="ex: 500" {...field} />
                                   </FormControl>
-                                  <SelectContent>
-                                    {transportOptions.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`transport.${index}.weight`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Poids (tonnes)</FormLabel>
+                                  <FormControl>
+                                    <Input type="number" placeholder="ex: 10" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                           <FormField
                             control={form.control}
-                            name={`transport.${index}.distance`}
+                            name={`transport.${index}.comment`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Distance (km)</FormLabel>
+                                <FormLabel>Commentaires</FormLabel>
                                 <FormControl>
-                                  <Input type="number" placeholder="ex: 500" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name={`transport.${index}.weight`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Poids (tonnes)</FormLabel>
-                                <FormControl>
-                                  <Input type="number" placeholder="ex: 10" {...field} />
+                                  <Input placeholder="Hypothèses, détails..." {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -1134,7 +1215,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => eolAppend({ method: "", weight: 0 })}
+                        onClick={() => eolAppend({ method: "", weight: 0, comment: "" })}
                       >
                         <PlusCircle className="mr-2 h-4 w-4" /> Ajouter une méthode
                       </Button>
@@ -1142,36 +1223,51 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                   >
                     {eolFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucune méthode ajoutée.</p>}
                     {eolFields.map((field, index) => (
-                      <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-4 rounded-md border p-4">
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          <FormField
-                            control={form.control}
-                            name={`endOfLife.${index}.method`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Méthode</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
+                        <div className="flex flex-col gap-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <FormField
+                              control={form.control}
+                              name={`endOfLife.${index}.method`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Méthode</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Sélectionnez une méthode" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {eolOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`endOfLife.${index}.weight`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Poids (kg)</FormLabel>
                                   <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Sélectionnez une méthode" />
-                                    </SelectTrigger>
+                                    <Input type="number" placeholder="ex: 100" {...field} />
                                   </FormControl>
-                                  <SelectContent>
-                                    {eolOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                           <FormField
                             control={form.control}
-                            name={`endOfLife.${index}.weight`}
+                            name={`endOfLife.${index}.comment`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Poids (kg)</FormLabel>
+                                <FormLabel>Commentaires</FormLabel>
                                 <FormControl>
-                                  <Input type="number" placeholder="ex: 100" {...field} />
+                                  <Input placeholder="Hypothèses, détails..." {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -1189,30 +1285,6 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                 </TabsContent>
             </div>
           </Tabs>
-          
-          <SectionCard
-              title="Commentaires explicatifs"
-              description="Ajoutez des commentaires, des hypothèses ou toute autre information pertinente."
-              icon={MessageSquare}
-              actions={<></>}
-          >
-              <FormField
-                  control={form.control}
-                  name="explanatoryComments"
-                  render={({ field }) => (
-                      <FormItem>
-                          <FormControl>
-                              <Textarea
-                                  placeholder="Saisissez vos commentaires ici..."
-                                  className="min-h-[120px]"
-                                  {...field}
-                              />
-                          </FormControl>
-                          <FormMessage />
-                      </FormItem>
-                  )}
-              />
-          </SectionCard>
 
           <SectionCard
             title="Suggestions d'amélioration"
@@ -1273,3 +1345,5 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </Form>
   );
 }
+
+    
