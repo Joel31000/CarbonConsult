@@ -64,7 +64,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { emissionFactors } from "@/lib/data";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -78,7 +77,6 @@ const formSchema = z.object({
       material: z.string().min(1, "Veuillez sélectionner un matériau."),
       quantity: z.coerce.number().min(0.01, "La quantité doit être supérieure à 0."),
       comment: z.string().optional(),
-      // Champs spécifiques au béton
       concreteType: z.string().optional(),
       cementMass: z.coerce.number().optional(),
       isReinforced: z.boolean().optional(),
@@ -115,7 +113,6 @@ const formSchema = z.object({
       comment: z.string().optional(),
     })
   ),
-  explanatoryComments: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -286,7 +283,6 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
       implementation: [],
       transport: [],
       endOfLife: [],
-      explanatoryComments: "",
     },
   });
 
@@ -327,16 +323,12 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         const cementMass = item.cementMass || 0;
         const concreteFactor = emissionFactors.concrete.find(c => c.name === item.concreteType)?.factor || 0;
         
-        // Calcul pour le béton (ciment)
-        // Le facteur est en kgCO2eq/kg de ciment. Masse de ciment en kg/m³. Quantité en m³.
         const cementCO2e = (quantity * cementMass) * concreteFactor;
         co2e += cementCO2e;
         
-        // Calcul pour l'armature si applicable
         if (item.isReinforced) {
           const rebarMass = item.rebarMass || 0;
           const rebarFactorValue = item.rebarFactor || 0;
-          // Le facteur est en kgCO2eq/kg d'armature. Masse de ferraillage en kg/m³. Quantité en m³.
           const rebarCO2e = (quantity * rebarMass) * rebarFactorValue;
           co2e += rebarCO2e;
           name = `${name} armé`;
@@ -400,37 +392,21 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     const data = form.getValues();
     const { totals: calculatedTotals, details: calculatedDetails } = calculateEmissions(data);
     
-    const thStyle = 'background-color: #f2f2f2; font-weight: bold; padding: 8px; border: 1px solid #ddd;';
-    const tdStyle = 'padding: 8px; border: 1px solid #ddd; text-align: left;';
-    const numStyle = 'padding: 8px; border: 1px solid #ddd; text-align: right;';
-
-    let tableHtml = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-        <head><meta charset='UTF-8'><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Bilan Carbone</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
-        <style>
-            table, th, td { border-collapse: collapse; }
-            .num { mso-number-format:"0.00"; }
-        </style>
-        </head>
-        <body>
-          <table>
-            <thead>
-              <tr>
-                <th style="${thStyle}">Rubriques</th>
-                <th style="${thStyle}">Méthodes</th>
-                <th style="${thStyle}">Unité</th>
-                <th style="${thStyle}">Quantité</th>
-                <th style="${thStyle}">Facteur d'émission (kg CO²e)</th>
-                <th style="${thStyle}">Masse ciment (kg/m³)</th>
-                <th style="${thStyle}">Facteur d'émission armature (kg CO²e)</th>
-                <th style="${thStyle}">Masse de ferraillage (kg/m³)</th>
-                <th style="${thStyle}">Poids (tonnes)</th>
-                <th style="${thStyle}">Kg CO²e</th>
-                <th style="${thStyle}">Commentaires explicatifs</th>
-              </tr>
-            </thead>
-            <tbody>
-    `;
+    const wb = XLSX.utils.book_new();
+    const ws_data = [
+      [
+        "Rubriques",
+        "Méthodes",
+        "Unité",
+        "Quantité",
+        "Poids (tonnes)",
+        "Masse ciment (kg/m³)",
+        "Facteur d'émission armature (kg CO²e)",
+        "Masse de ferraillage (kg/m³)",
+        "Commentaires explicatifs",
+        "Kg CO²e"
+      ]
+    ];
 
     const addRow = (rubrique: string, item: any, co2e: number) => {
         let quantityDisplay = '';
@@ -439,66 +415,50 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         let methodName = item.material || item.process || item.mode || item.method;
         let commentDisplay = item.comment || '';
 
-        let emissionFactorDisplay = '';
         let cementMassDisplay = '';
         let rebarFactorDisplay = '';
         let rebarMassDisplay = '';
         
         if (rubrique === 'Matériaux') {
-            quantityDisplay = (Number(item.quantity) || 0).toFixed(2);
+            quantityDisplay = (item.quantity || 0).toString();
             unitDisplay = item.material === 'Béton' ? 'm³' : 'kg';
             if (item.material === "Béton") {
                 methodName = item.concreteType || "Béton";
-                const concreteFactor = emissionFactors.concrete.find(c => c.name === item.concreteType)?.factor || 0;
-                emissionFactorDisplay = concreteFactor.toFixed(3);
-                cementMassDisplay = (Number(item.cementMass) || 0).toFixed(2);
+                cementMassDisplay = (item.cementMass || 0).toString();
                 if (item.isReinforced) {
                     methodName += " armé";
-                    rebarFactorDisplay = (Number(item.rebarFactor) || 0).toFixed(2);
-                    rebarMassDisplay = (Number(item.rebarMass) || 0).toFixed(2);
+                    rebarFactorDisplay = (item.rebarFactor || 0).toString();
+                    rebarMassDisplay = (item.rebarMass || 0).toString();
                 }
-            } else if (item.material) {
-                const factor = emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
-                emissionFactorDisplay = factor.toFixed(2);
             }
         } else if (rubrique === 'Fabrication') {
-            quantityDisplay = (Number(item.value) || 0).toFixed(2);
+            quantityDisplay = (item.value || 0).toString();
             const processData = emissionFactors.manufacturing.find(m => m.name === item.process);
             unitDisplay = processData?.unit.endsWith('/hr') ? 'H' : 'kg';
-            emissionFactorDisplay = (processData?.factor || 0).toFixed(2);
         } else if (rubrique === 'Mise en œuvre') {
-            quantityDisplay = (Number(item.duration) || 0).toFixed(2);
+            quantityDisplay = (item.duration || 0).toString();
             unitDisplay = 'H';
-            const factor = emissionFactors.implementation.find(m => m.name === item.process)?.factor || 0;
-            emissionFactorDisplay = factor.toFixed(2);
         } else if (rubrique === 'Transport') {
-            quantityDisplay = (Number(item.distance) || 0).toFixed(2);
+            quantityDisplay = (item.distance || 0).toString();
             unitDisplay = 'km';
-            weightDisplay = (Number(item.weight) || 0).toFixed(2);
-            const factor = emissionFactors.transport.find(m => m.name === item.mode)?.factor || 0;
-            emissionFactorDisplay = factor.toFixed(4);
+            weightDisplay = (item.weight || 0).toString();
         } else if (rubrique === 'Fin de vie') {
-            quantityDisplay = (Number(item.weight) || 0).toFixed(2);
+            quantityDisplay = (item.weight || 0).toString();
             unitDisplay = 'kg';
-            const factor = emissionFactors.endOfLife.find(m => m.name === item.method)?.factor || 0;
-            emissionFactorDisplay = factor.toFixed(2);
         }
 
-        tableHtml += `
-            <tr>
-                <td style="${tdStyle}">${rubrique}</td>
-                <td style="${tdStyle}">${methodName}</td>
-                <td style="${tdStyle}">${unitDisplay}</td>
-                <td style="${numStyle}" class="num">${quantityDisplay}</td>
-                <td style="${numStyle}" class="num">${emissionFactorDisplay}</td>
-                <td style="${numStyle}" class="num">${cementMassDisplay}</td>
-                <td style="${numStyle}" class="num">${rebarFactorDisplay}</td>
-                <td style="${numStyle}" class="num">${rebarMassDisplay}</td>
-                <td style="${numStyle}" class="num">${weightDisplay}</td>
-                <td style="${numStyle}" class="num">${co2e.toFixed(2)}</td>
-                <td style="${tdStyle}">${commentDisplay}</td>
-            </tr>
-        `;
+        ws_data.push([
+            rubrique,
+            methodName,
+            unitDisplay,
+            quantityDisplay,
+            weightDisplay,
+            cementMassDisplay,
+            rebarFactorDisplay,
+            rebarMassDisplay,
+            commentDisplay,
+            co2e.toFixed(2)
+        ]);
     };
     
     data.rawMaterials?.forEach((item, index) => {
@@ -526,29 +486,22 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         addRow('Fin de vie', item, co2eItem?.co2e || 0);
     });
 
-    // Total row
-    tableHtml += `
-            <tr>
-                <td colspan="9" style="${thStyle}">Total</td>
-                <td style="${thStyle} text-align: right;" class="num">${calculatedTotals.grandTotal.toFixed(2)}</td>
-                <td style="${thStyle}"></td>
-            </tr>
-    `;
-
-    tableHtml += `
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-    const blob = new Blob([tableHtml], { type: 'application/vnd.ms-excel' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `bilan_carbone_${consultationLabel.replace(/ /g, '_') || 'export'}.xls`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    ws_data.push([
+      "Total",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      calculatedTotals.grandTotal.toFixed(2)
+    ]);
+    
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    XLSX.utils.book_append_sheet(wb, ws, "Bilan Carbone");
+    XLSX.writeFile(wb, `bilan_carbone_${consultationLabel.replace(/ /g, '_') || 'export'}.xlsx`);
     
     toast({
         title: "Exportation réussie",
@@ -578,12 +531,11 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                 implementation: [],
                 transport: [],
                 endOfLife: [],
-                explanatoryComments: form.getValues('explanatoryComments')
             };
             
             const headerMap: { [key: string]: number } = {};
             headers.forEach((h, i) => {
-                headerMap[h] = i;
+                headerMap[h.trim()] = i;
             });
 
             let currentSection = '';
@@ -609,9 +561,6 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                              concreteType = methodName.replace(' armé', '').trim();
                         } else if (emissionFactors.concrete.some(c => c.name === methodName)) {
                             material = 'Béton';
-                            concreteType = methodName;
-                        } else if (!materialOptions.includes(methodName) && concreteOptions.includes(methodName)) {
-                            material = "Béton";
                             concreteType = methodName;
                         }
                         
@@ -695,11 +644,11 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
       }
       
       const allComments = [
-        ...values.rawMaterials.map(i => i.comment),
-        ...values.manufacturing.map(i => i.comment),
-        ...values.implementation.map(i => i.comment),
-        ...values.transport.map(i => i.comment),
-        ...values.endOfLife.map(i => i.comment)
+        ...values.rawMaterials.map(i => i.comment ? `Matériau (${i.material}): ${i.comment}`: null),
+        ...values.manufacturing.map(i => i.comment ? `Fabrication (${i.process}): ${i.comment}`: null),
+        ...values.implementation.map(i => i.comment ? `Mise en œuvre (${i.process}): ${i.comment}`: null),
+        ...values.transport.map(i => i.comment ? `Transport (${i.mode}): ${i.comment}`: null),
+        ...values.endOfLife.map(i => i.comment ? `Fin de vie (${i.method}): ${i.comment}`: null)
       ].filter(Boolean).join('; ');
 
       try {
@@ -931,7 +880,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                               <FormItem>
                                 <FormLabel>Commentaires</FormLabel>
                                 <FormControl>
-                                  <Input placeholder="Hypothèses, détails..." {...field} />
+                                  <Input placeholder="Hypothèses, détails..." {...field} value={field.value ?? ''} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -1016,7 +965,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                                   <FormItem>
                                     <FormLabel>Commentaires</FormLabel>
                                     <FormControl>
-                                      <Input placeholder="Hypothèses, détails..." {...field} />
+                                      <Input placeholder="Hypothèses, détails..." {...field} value={field.value ?? ''} />
                                     </FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -1096,7 +1045,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                               <FormItem>
                                 <FormLabel>Commentaires</FormLabel>
                                 <FormControl>
-                                  <Input placeholder="Hypothèses, détails..." {...field} />
+                                  <Input placeholder="Hypothèses, détails..." {...field} value={field.value ?? ''} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -1188,7 +1137,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                               <FormItem>
                                 <FormLabel>Commentaires</FormLabel>
                                 <FormControl>
-                                  <Input placeholder="Hypothèses, détails..." {...field} />
+                                  <Input placeholder="Hypothèses, détails..." {...field} value={field.value ?? ''} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -1267,7 +1216,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                               <FormItem>
                                 <FormLabel>Commentaires</FormLabel>
                                 <FormControl>
-                                  <Input placeholder="Hypothèses, détails..." {...field} />
+                                  <Input placeholder="Hypothèses, détails..." {...field} value={field.value ?? ''} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -1345,5 +1294,3 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </Form>
   );
 }
-
-    
