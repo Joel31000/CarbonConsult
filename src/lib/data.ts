@@ -83,9 +83,6 @@ export const emissionFactors = {
     { name: "Voiture GNV", factor: 0.12, unit: "kg CO2e/t.km" },
     { name: "Voiture GPL", factor: 0.161, unit: "kg CO2e/t.km" },
   ].sort((a, b) => a.name.localeCompare(b.name)),
-  endOfLife: [
-    { name: "Incinération", factor: 0.2, unit: "kg CO2e/kg" },
-    { name: "Mise en décharge", factor: 0.05, unit: "kg CO2e/kg" },
-    { name: "Recyclage", factor: -0.4, unit: "kg CO2e/kg" },
-  ],
 };
+
+    

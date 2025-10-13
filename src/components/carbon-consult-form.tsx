@@ -12,7 +12,6 @@ import {
   Factory,
   Leaf,
   PlusCircle,
-  Recycle,
   Trash2,
   Truck,
   FileUp,
@@ -100,13 +99,6 @@ const formSchema = z.object({
       comment: z.string().optional(),
     })
   ),
-  endOfLife: z.array(
-    z.object({
-      method: z.string().min(1, "Veuillez sélectionner une méthode."),
-      weight: z.coerce.number().min(0.01, "Le poids doit être supérieur à 0."),
-      comment: z.string().optional(),
-    })
-  ),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -117,7 +109,6 @@ const rebarOptions = emissionFactors.rebar;
 const processOptions = emissionFactors.manufacturing.map((p) => p.name);
 const implementationOptions = emissionFactors.implementation.map((i) => i.name);
 const transportOptions = emissionFactors.transport.map((t) => t.name);
-const eolOptions = emissionFactors.endOfLife.map((e) => e.name);
 
 function SectionCard({
   title,
@@ -159,7 +150,6 @@ const TotalsDisplay = ({
     manufacturing: number;
     implementation: number;
     transport: number;
-    endOfLife: number;
     grandTotal: number;
   };
   details: {
@@ -167,7 +157,6 @@ const TotalsDisplay = ({
     manufacturing: { name: string; co2e: number }[];
     implementation: { name: string; co2e: number }[];
     transport: { name: string; co2e: number }[];
-    endOfLife: { name: string; co2e: number }[];
   };
 }) => {
   const chartConfig = useMemo(() => {
@@ -206,10 +195,6 @@ const TotalsDisplay = ({
       {
         name: "Transport",
         ...details.transport.reduce((acc, item) => ({ ...acc, [item.name]: item.co2e }), {})
-      },
-      {
-        name: "Fin de vie",
-        ...details.endOfLife.reduce((acc, item) => ({ ...acc, [item.name]: item.co2e }), {})
       },
     ];
     return data.filter(d => Object.keys(d).length > 1);
@@ -274,7 +259,6 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
       manufacturing: [],
       implementation: [],
       transport: [],
-      endOfLife: [],
     },
   });
 
@@ -293,10 +277,6 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
   const { fields: tptFields, append: tptAppend, remove: tptRemove } = useFieldArray({
     control: form.control,
     name: "transport",
-  });
-  const { fields: eolFields, append: eolAppend, remove: eolRemove } = useFieldArray({
-    control: form.control,
-    name: "endOfLife",
   });
 
   const watchedValues = useWatch({ control: form.control });
@@ -348,16 +328,10 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
       return { name: item.mode || "Inconnu", co2e: (item.distance || 0) * (item.weight || 0) * factor };
     }).filter(item => item.co2e > 0) || [];
 
-    const eolDetails = values.endOfLife?.map(item => {
-      const factor = emissionFactors.endOfLife.find(e => e.name === item.method)?.factor || 0;
-      return { name: item.method || "Inconnu", co2e: (item.weight || 0) * factor };
-    }).filter(item => item.co2e > 0) || [];
-
     const rmTotal = rmDetails.reduce((sum, item) => sum + item.co2e, 0);
     const mfgTotal = mfgDetails.reduce((sum, item) => sum + item.co2e, 0);
     const implTotal = implDetails.reduce((sum, item) => sum + item.co2e, 0);
     const tptTotal = tptDetails.reduce((sum, item) => sum + item.co2e, 0);
-    const eolTotal = eolDetails.reduce((sum, item) => sum + item.co2e, 0);
 
     return {
       totals: {
@@ -365,15 +339,13 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         manufacturing: mfgTotal,
         implementation: implTotal,
         transport: tptTotal,
-        endOfLife: eolTotal,
-        grandTotal: rmTotal + mfgTotal + implTotal + tptTotal + eolTotal,
+        grandTotal: rmTotal + mfgTotal + implTotal + tptTotal,
       },
       details: {
         rawMaterials: rmDetails,
         manufacturing: mfgDetails,
         implementation: implDetails,
         transport: tptDetails,
-        endOfLife: eolDetails,
       }
     };
   };
@@ -381,131 +353,163 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
   const { totals, details } = useMemo(() => calculateEmissions(watchedValues as FormValues), [watchedValues]);
 
   const handleExportToExcel = () => {
-    const data = form.getValues();
-    const { totals: calculatedTotals, details: calculatedDetails } = calculateEmissions(data);
-    
-    const header = [
-      "Rubriques",
-      "Méthodes",
-      "Unité",
-      "Quantité",
-      "Facteur d'émission (kg CO²e)",
-      "Masse ciment (kg/m³)",
-      "Facteur d'émission armature (kg CO²e)",
-      "Masse de ferraillage (kg/m³)",
-      "Poids (tonnes)",
-      "Kg CO²e",
-      "Commentaires explicatifs"
-    ];
-    const ws_data: (string | number)[][] = [header];
+    try {
+        const data = form.getValues();
+        const { totals: calculatedTotals, details: calculatedDetails } = calculateEmissions(data);
 
-    const getEmissionFactor = (rubrique: string, item: any) => {
-      switch (rubrique) {
-        case 'Matériaux':
-          if (item.material === 'Béton') {
-            return emissionFactors.concrete.find(c => c.name === item.concreteType)?.factor || 0;
-          }
-          return emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
-        case 'Fabrication':
-          return emissionFactors.manufacturing.find(p => p.name === item.process)?.factor || 0;
-        case 'Mise en œuvre':
-          return emissionFactors.implementation.find(i => i.name === item.process)?.factor || 0;
-        case 'Transport':
-          return emissionFactors.transport.find(t => t.name === item.mode)?.factor || 0;
-        case 'Fin de vie':
-          return emissionFactors.endOfLife.find(e => e.name === item.method)?.factor || 0;
-        default:
-          return 0;
-      }
-    };
+        const header = [
+            "Rubriques",
+            "Méthodes",
+            "Unité",
+            "Quantité",
+            "Facteur d'émission (kg CO²e)",
+            "Masse ciment (kg/m³)",
+            "Facteur d'émission armature (kg CO²e)",
+            "Masse de ferraillage (kg/m³)",
+            "Poids (tonnes)",
+            "Kg CO²e",
+            "Commentaires explicatifs"
+        ];
+        const ws_data: (string | number)[][] = [header];
 
-    const addRow = (rubrique: string, item: any, co2e: number) => {
-        let row: (string | number)[] = Array(header.length).fill('');
-        let methodName = item.material || item.process || item.mode || item.method;
-
-        row[0] = rubrique;
-        row[10] = item.comment || '';
-
-        if (rubrique === 'Matériaux') {
-            row[3] = (item.quantity || 0).toString();
-            row[2] = item.material === 'Béton' ? 'm³' : 'kg';
-            row[4] = getEmissionFactor(rubrique, item);
-
-            if (item.material === "Béton") {
-                methodName = item.concreteType || "Béton";
-                row[5] = (item.cementMass || 0).toString();
-                if (item.isReinforced) {
-                    methodName += " armé";
-                    row[6] = (item.rebarFactor || 0).toString();
-                    row[7] = (item.rebarMass || 0).toString();
-                }
+        const getEmissionFactor = (rubrique: string, item: any) => {
+            switch (rubrique) {
+                case 'Matériaux':
+                    if (item.material === 'Béton') {
+                        return emissionFactors.concrete.find(c => c.name === item.concreteType)?.factor || 0;
+                    }
+                    return emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
+                case 'Fabrication':
+                    return emissionFactors.manufacturing.find(p => p.name === item.process)?.factor || 0;
+                case 'Mise en œuvre':
+                    return emissionFactors.implementation.find(i => i.name === item.process)?.factor || 0;
+                case 'Transport':
+                    return emissionFactors.transport.find(t => t.name === item.mode)?.factor || 0;
+                default:
+                    return 0;
             }
-        } else if (rubrique === 'Fabrication') {
-            row[3] = (item.value || 0).toString();
-            const processData = emissionFactors.manufacturing.find(m => m.name === item.process);
-            row[2] = processData?.unit.endsWith('/hr') ? 'H' : 'kg';
-            row[4] = getEmissionFactor(rubrique, item);
-        } else if (rubrique === 'Mise en œuvre') {
-            row[3] = (item.duration || 0).toString();
-            row[2] = 'H';
-            row[4] = getEmissionFactor(rubrique, item);
-        } else if (rubrique === 'Transport') {
-            row[3] = (item.distance || 0).toString();
-            row[2] = 'km';
-            row[8] = (item.weight || 0).toString();
-            row[4] = getEmissionFactor(rubrique, item);
-        } else if (rubrique === 'Fin de vie') {
-            row[3] = (item.weight || 0).toString();
-            row[2] = 'kg';
-            row[4] = getEmissionFactor(rubrique, item);
-        }
+        };
+
+        const addRow = (rubrique: string, item: any, co2e: number) => {
+            let row: (string | number)[] = Array(header.length).fill('');
+            let methodName = item.material || item.process || item.mode || item.method;
+
+            row[0] = rubrique;
+            row[10] = item.comment || '';
+
+            if (rubrique === 'Matériaux') {
+                row[3] = (item.quantity || 0).toString();
+                row[2] = item.material === 'Béton' ? 'm³' : 'kg';
+                row[4] = getEmissionFactor(rubrique, item);
+
+                if (item.material === "Béton") {
+                    methodName = item.concreteType || "Béton";
+                    row[5] = (item.cementMass || 0).toString();
+                    if (item.isReinforced) {
+                        methodName += " armé";
+                        row[6] = (item.rebarFactor || 0).toString();
+                        row[7] = (item.rebarMass || 0).toString();
+                    }
+                }
+            } else if (rubrique === 'Fabrication') {
+                row[3] = (item.value || 0).toString();
+                const processData = emissionFactors.manufacturing.find(m => m.name === item.process);
+                row[2] = processData?.unit.endsWith('/hr') ? 'H' : 'kg';
+                row[4] = getEmissionFactor(rubrique, item);
+            } else if (rubrique === 'Mise en œuvre') {
+                row[3] = (item.duration || 0).toString();
+                row[2] = 'H';
+                row[4] = getEmissionFactor(rubrique, item);
+            } else if (rubrique === 'Transport') {
+                row[3] = (item.distance || 0).toString();
+                row[2] = 'km';
+                row[8] = (item.weight || 0).toString();
+                row[4] = getEmissionFactor(rubrique, item);
+            }
+            
+            row[1] = methodName;
+            row[9] = co2e.toFixed(2);
+
+            ws_data.push(row);
+        };
         
-        row[1] = methodName;
-        row[9] = co2e.toFixed(2);
+        data.rawMaterials?.forEach((item, index) => {
+            const co2eItem = calculatedDetails.rawMaterials.find((d, i) => i === index);
+            if (item.material) addRow('Matériaux', item, co2eItem?.co2e || 0);
+        });
 
-        ws_data.push(row);
-    };
-    
-    data.rawMaterials?.forEach((item, index) => {
-        const co2eItem = calculatedDetails.rawMaterials.find((d, i) => i === index);
-        if (item.material) addRow('Matériaux', item, co2eItem?.co2e || 0);
-    });
+        data.manufacturing?.forEach((item, index) => {
+            const co2eItem = calculatedDetails.manufacturing.find((d, i) => i === index);
+            if (item.process) addRow('Fabrication', item, co2eItem?.co2e || 0);
+        });
 
-    data.manufacturing?.forEach((item, index) => {
-        const co2eItem = calculatedDetails.manufacturing.find((d, i) => i === index);
-        if (item.process) addRow('Fabrication', item, co2eItem?.co2e || 0);
-    });
+        data.implementation?.forEach((item, index) => {
+            const co2eItem = calculatedDetails.implementation.find((d, i) => i === index);
+            if (item.process) addRow('Mise en œuvre', item, co2eItem?.co2e || 0);
+        });
 
-    data.implementation?.forEach((item, index) => {
-        const co2eItem = calculatedDetails.implementation.find((d, i) => i === index);
-        if (item.process) addRow('Mise en œuvre', item, co2eItem?.co2e || 0);
-    });
+        data.transport?.forEach((item, index) => {
+            const co2eItem = calculatedDetails.transport.find((d, i) => i === index);
+            if (item.mode) addRow('Transport', item, co2eItem?.co2e || 0);
+        });
 
-    data.transport?.forEach((item, index) => {
-        const co2eItem = calculatedDetails.transport.find((d, i) => i === index);
-        if (item.mode) addRow('Transport', item, co2eItem?.co2e || 0);
-    });
+        let totalRow: (string | number)[] = Array(header.length).fill('');
+        totalRow[0] = "Total";
+        totalRow[9] = calculatedTotals.grandTotal.toFixed(2);
+        ws_data.push(totalRow);
+        
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+        
+        const headerStyle = { font: { bold: true }, fill: { fgColor: { rgb: "FFD3D3D3" } } };
+        const totalStyle = { font: { bold: true }, fill: { fgColor: { rgb: "FFD3D3D3" } } };
 
-    data.endOfLife?.forEach((item, index) => {
-        const co2eItem = calculatedDetails.endOfLife.find((d, i) => i === index);
-        if (item.method) addRow('Fin de vie', item, co2eItem?.co2e || 0);
-    });
+        const getColumnLetter = (colIndex: number) => {
+            let temp, letter = '';
+            while (colIndex >= 0) {
+                temp = colIndex % 26;
+                letter = String.fromCharCode(temp + 65) + letter;
+                colIndex = Math.floor(colIndex / 26) - 1;
+            }
+            return letter;
+        }
 
-    let totalRow: (string | number)[] = Array(header.length).fill('');
-    totalRow[0] = "Total";
-    totalRow[9] = calculatedTotals.grandTotal.toFixed(2);
-    ws_data.push(totalRow);
-    
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+        if(!ws['!cols']) ws['!cols'] = [];
+        header.forEach((h, i) => {
+            const cellRef = getColumnLetter(i) + '1';
+            if(ws[cellRef]) {
+               ws[cellRef].s = headerStyle;
+            }
+            const colWidth = Math.max(h.length, ...ws_data.map(row => (row[i] || '').toString().length)) + 2;
+            ws['!cols'][i] = { wch: colWidth };
+        });
 
-    XLSX.utils.book_append_sheet(wb, ws, 'Bilan Carbone');
-    XLSX.writeFile(wb, `bilan_carbone_${consultationLabel.replace(/ /g, '_') || 'export'}.xlsx`);
+        const totalRowIndex = ws_data.length;
+        const totalCellRef = 'A' + totalRowIndex;
+        if(ws[totalCellRef]) {
+            ws[totalCellRef].s = totalStyle;
+        }
+        const totalValueCellRef = getColumnLetter(9) + totalRowIndex;
+        if(ws[totalValueCellRef]) {
+            ws[totalValueCellRef].s = totalStyle;
+        }
 
-    toast({
-        title: "Exportation réussie",
-        description: "Le fichier Excel du bilan carbone a été téléchargé.",
-    });
+
+        XLSX.utils.book_append_sheet(wb, ws, 'Bilan Carbone');
+        XLSX.writeFile(wb, `bilan_carbone_${consultationLabel.replace(/ /g, '_') || 'export'}.xlsx`);
+
+        toast({
+            title: "Exportation réussie",
+            description: "Le fichier Excel du bilan carbone a été téléchargé.",
+        });
+    } catch(e) {
+        console.error("Erreur lors de l'export Excel:", e);
+        toast({
+            variant: "destructive",
+            title: "Échec de l'exportation",
+            description: "Une erreur est survenue lors de la génération du fichier Excel.",
+        });
+    }
   };
 
   const handleImportFromExcel = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -529,7 +533,6 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                 manufacturing: [],
                 implementation: [],
                 transport: [],
-                endOfLife: [],
             };
             
             const headerMap: { [key: string]: number } = {};
@@ -597,13 +600,6 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                             comment: comment,
                         });
                         break;
-                    case 'Fin de vie':
-                         newValues.endOfLife.push({
-                            method: methodName,
-                            weight: quantity,
-                            comment: comment,
-                        });
-                        break;
                 }
             });
             form.reset(newValues);
@@ -634,7 +630,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
       >
         <div className="lg:col-span-2 flex flex-col gap-8">
           <Tabs defaultValue="materials" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 print:hidden">
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 print:hidden">
               <TabsTrigger value="materials">
                 <Leaf className="mr-2 h-4 w-4" /> Matériaux
               </TabsTrigger>
@@ -646,9 +642,6 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
               </TabsTrigger>
               <TabsTrigger value="transport">
                 <Truck className="mr-2 h-4 w-4" /> Transport
-              </TabsTrigger>
-              <TabsTrigger value="end-of-life">
-                <Recycle className="mr-2 h-4 w-4" /> Fin de vie
               </TabsTrigger>
             </TabsList>
             
@@ -1099,84 +1092,6 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                   </SectionCard>
                 </TabsContent>
                 
-                <TabsContent value="end-of-life">
-                  <SectionCard
-                    title="Fin de vie"
-                    description="Décrivez le traitement de fin de vie du produit."
-                    icon={Recycle}
-                    actions={
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => eolAppend({ method: "", weight: 0, comment: "" })}
-                      >
-                        <PlusCircle className="mr-2 h-4 w-4" /> Ajouter une méthode
-                      </Button>
-                    }
-                  >
-                    {eolFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucune méthode ajoutée.</p>}
-                    {eolFields.map((field, index) => (
-                      <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
-                        <div className="flex flex-col gap-4">
-                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <FormField
-                              control={form.control}
-                              name={`endOfLife.${index}.method`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Méthode</FormLabel>
-                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Sélectionnez une méthode" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {eolOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name={`endOfLife.${index}.weight`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Poids (kg)</FormLabel>
-                                  <FormControl>
-                                    <Input type="number" placeholder="ex: 100" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                           <FormField
-                            control={form.control}
-                            name={`endOfLife.${index}.comment`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Commentaires</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Hypothèses, détails..." {...field} value={field.value ?? ''} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="pt-8">
-                          <Button type="button" variant="ghost" size="icon" onClick={() => eolRemove(index)}>
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </SectionCard>
-                </TabsContent>
             </div>
           </Tabs>
 
