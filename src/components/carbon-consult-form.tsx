@@ -380,7 +380,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
 
   const { totals, details } = useMemo(() => calculateEmissions(watchedValues as FormValues), [watchedValues]);
 
-  const handleExportToCSV = () => {
+  const handleExportToExcel = () => {
     const data = form.getValues();
     const { totals: calculatedTotals, details: calculatedDetails } = calculateEmissions(data);
     
@@ -477,27 +477,27 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     
     data.rawMaterials?.forEach((item, index) => {
         const co2eItem = calculatedDetails.rawMaterials.find((d, i) => i === index);
-        addRow('Matériaux', item, co2eItem?.co2e || 0);
+        if (item.material) addRow('Matériaux', item, co2eItem?.co2e || 0);
     });
 
     data.manufacturing?.forEach((item, index) => {
         const co2eItem = calculatedDetails.manufacturing.find((d, i) => i === index);
-        addRow('Fabrication', item, co2eItem?.co2e || 0);
+        if (item.process) addRow('Fabrication', item, co2eItem?.co2e || 0);
     });
 
     data.implementation?.forEach((item, index) => {
         const co2eItem = calculatedDetails.implementation.find((d, i) => i === index);
-        addRow('Mise en œuvre', item, co2eItem?.co2e || 0);
+        if (item.process) addRow('Mise en œuvre', item, co2eItem?.co2e || 0);
     });
 
     data.transport?.forEach((item, index) => {
         const co2eItem = calculatedDetails.transport.find((d, i) => i === index);
-        addRow('Transport', item, co2eItem?.co2e || 0);
+        if (item.mode) addRow('Transport', item, co2eItem?.co2e || 0);
     });
 
     data.endOfLife?.forEach((item, index) => {
         const co2eItem = calculatedDetails.endOfLife.find((d, i) => i === index);
-        addRow('Fin de vie', item, co2eItem?.co2e || 0);
+        if (item.method) addRow('Fin de vie', item, co2eItem?.co2e || 0);
     });
 
     ws_data.push([
@@ -514,22 +514,14 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
       calculatedTotals.grandTotal.toFixed(2)
     ]);
     
+    const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
-    const csvContent = XLSX.utils.sheet_to_csv(ws);
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    if (link.href) {
-        URL.revokeObjectURL(link.href);
-    }
-    link.href = URL.createObjectURL(blob);
-    link.download = `bilan_carbone_${consultationLabel.replace(/ /g, '_') || 'export'}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
+    XLSX.utils.book_append_sheet(wb, ws, 'Bilan Carbone');
+    XLSX.writeFile(wb, `bilan_carbone_${consultationLabel.replace(/ /g, '_') || 'export'}.xlsx`);
+
     toast({
         title: "Exportation réussie",
-        description: "Le fichier CSV du bilan carbone a été téléchargé.",
+        description: "Le fichier Excel du bilan carbone a été téléchargé.",
     });
   };
 
@@ -1221,9 +1213,9 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                     <FileUp className="mr-2 h-4 w-4" />
                     Importer bilan
                 </Button>
-                <Button type="button" variant="outline" onClick={handleExportToCSV}>
+                <Button type="button" variant="outline" onClick={handleExportToExcel}>
                   <FileSpreadsheet className="mr-2 h-4 w-4" />
-                  Générer le bilan (CSV)
+                  Générer le bilan (XLS)
                 </Button>
             </div>
         </div>
