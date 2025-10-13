@@ -384,28 +384,26 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     const data = form.getValues();
     const { totals: calculatedTotals, details: calculatedDetails } = calculateEmissions(data);
     
-    const ws_data: (string | number)[][] = [
-      [
-        "Rubriques",
-        "Méthodes",
-        "Unité",
-        "Quantité",
-        "Poids (tonnes)",
-        "Masse ciment (kg/m³)",
-        "Facteur d'émission armature (kg CO²e)",
-        "Masse de ferraillage (kg/m³)",
-        "Commentaires explicatifs",
-        "Facteur d'émission (kg CO²e)",
-        "Kg CO²e"
-      ]
+    const header = [
+      "Rubriques",
+      "Méthodes",
+      "Unité",
+      "Quantité",
+      "Facteur d'émission (kg CO²e)",
+      "Masse ciment (kg/m³)",
+      "Facteur d'émission armature (kg CO²e)",
+      "Masse de ferraillage (kg/m³)",
+      "Poids (tonnes)",
+      "Kg CO²e",
+      "Commentaires explicatifs"
     ];
+    const ws_data: (string | number)[][] = [header];
 
     const getEmissionFactor = (rubrique: string, item: any) => {
       switch (rubrique) {
         case 'Matériaux':
           if (item.material === 'Béton') {
-            const concreteFactor = emissionFactors.concrete.find(c => c.name === item.concreteType)?.factor || 0;
-            return `Béton: ${concreteFactor}, Armature: ${item.rebarFactor || 0}`;
+            return emissionFactors.concrete.find(c => c.name === item.concreteType)?.factor || 0;
           }
           return emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
         case 'Fabrication':
@@ -422,57 +420,50 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     };
 
     const addRow = (rubrique: string, item: any, co2e: number) => {
-        let quantityDisplay = '';
-        let unitDisplay = '';
-        let weightDisplay = '';
+        let row: (string | number)[] = Array(header.length).fill('');
         let methodName = item.material || item.process || item.mode || item.method;
-        let commentDisplay = item.comment || '';
 
-        let cementMassDisplay = '';
-        let rebarFactorDisplay = '';
-        let rebarMassDisplay = '';
-        
+        row[0] = rubrique;
+        row[10] = item.comment || '';
+
         if (rubrique === 'Matériaux') {
-            quantityDisplay = (item.quantity || 0).toString();
-            unitDisplay = item.material === 'Béton' ? 'm³' : 'kg';
+            row[3] = (item.quantity || 0).toString();
+            row[2] = item.material === 'Béton' ? 'm³' : 'kg';
+            row[4] = getEmissionFactor(rubrique, item);
+
             if (item.material === "Béton") {
                 methodName = item.concreteType || "Béton";
-                cementMassDisplay = (item.cementMass || 0).toString();
+                row[5] = (item.cementMass || 0).toString();
                 if (item.isReinforced) {
                     methodName += " armé";
-                    rebarFactorDisplay = (item.rebarFactor || 0).toString();
-                    rebarMassDisplay = (item.rebarMass || 0).toString();
+                    row[6] = (item.rebarFactor || 0).toString();
+                    row[7] = (item.rebarMass || 0).toString();
                 }
             }
         } else if (rubrique === 'Fabrication') {
-            quantityDisplay = (item.value || 0).toString();
+            row[3] = (item.value || 0).toString();
             const processData = emissionFactors.manufacturing.find(m => m.name === item.process);
-            unitDisplay = processData?.unit.endsWith('/hr') ? 'H' : 'kg';
+            row[2] = processData?.unit.endsWith('/hr') ? 'H' : 'kg';
+            row[4] = getEmissionFactor(rubrique, item);
         } else if (rubrique === 'Mise en œuvre') {
-            quantityDisplay = (item.duration || 0).toString();
-            unitDisplay = 'H';
+            row[3] = (item.duration || 0).toString();
+            row[2] = 'H';
+            row[4] = getEmissionFactor(rubrique, item);
         } else if (rubrique === 'Transport') {
-            quantityDisplay = (item.distance || 0).toString();
-            unitDisplay = 'km';
-            weightDisplay = (item.weight || 0).toString();
+            row[3] = (item.distance || 0).toString();
+            row[2] = 'km';
+            row[8] = (item.weight || 0).toString();
+            row[4] = getEmissionFactor(rubrique, item);
         } else if (rubrique === 'Fin de vie') {
-            quantityDisplay = (item.weight || 0).toString();
-            unitDisplay = 'kg';
+            row[3] = (item.weight || 0).toString();
+            row[2] = 'kg';
+            row[4] = getEmissionFactor(rubrique, item);
         }
+        
+        row[1] = methodName;
+        row[9] = co2e.toFixed(2);
 
-        ws_data.push([
-            rubrique,
-            methodName,
-            unitDisplay,
-            quantityDisplay,
-            weightDisplay,
-            cementMassDisplay,
-            rebarFactorDisplay,
-            rebarMassDisplay,
-            commentDisplay,
-            getEmissionFactor(rubrique, item),
-            co2e.toFixed(2)
-        ]);
+        ws_data.push(row);
     };
     
     data.rawMaterials?.forEach((item, index) => {
@@ -500,22 +491,14 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         if (item.method) addRow('Fin de vie', item, co2eItem?.co2e || 0);
     });
 
-    ws_data.push([
-      "Total",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      calculatedTotals.grandTotal.toFixed(2)
-    ]);
+    let totalRow: (string | number)[] = Array(header.length).fill('');
+    totalRow[0] = "Total";
+    totalRow[9] = calculatedTotals.grandTotal.toFixed(2);
+    ws_data.push(totalRow);
     
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
     XLSX.utils.book_append_sheet(wb, ws, 'Bilan Carbone');
     XLSX.writeFile(wb, `bilan_carbone_${consultationLabel.replace(/ /g, '_') || 'export'}.xlsx`);
 
@@ -536,7 +519,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
             const workbook = XLSX.read(data, { type: 'array' });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
-            const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
 
             const headers = json[0] as string[];
             const dataRows = json.slice(1);
