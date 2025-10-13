@@ -11,17 +11,14 @@ import { z } from "zod";
 import {
   Factory,
   Leaf,
-  Loader2,
   PlusCircle,
   Recycle,
   Trash2,
   Truck,
-  MessageSquare,
-  Sparkles,
   FileUp,
 } from "lucide-react";
 import { Construction, FileSpreadsheet } from "@/components/icons";
-import React, { useMemo, useState, useTransition, useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import {
   Bar,
   BarChart,
@@ -67,9 +64,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { emissionFactors } from "@/lib/data";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { SuggestionResponse } from "@/ai/flows/suggest-carbon-improvements";
-import { suggestImprovements } from "@/ai/flows/suggest-carbon-improvements";
-import { Skeleton } from "./ui/skeleton";
 
 const formSchema = z.object({
   rawMaterials: z.array(
@@ -271,8 +265,6 @@ const TotalsDisplay = ({
 
 export function CarbonConsultForm({ consultationLabel }: { consultationLabel: string }) {
   const { toast } = useToast();
-  const [isSuggestionPending, startSuggestionTransition] = useTransition();
-  const [suggestion, setSuggestion] = useState<SuggestionResponse | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormValues>({
@@ -388,12 +380,11 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
 
   const { totals, details } = useMemo(() => calculateEmissions(watchedValues as FormValues), [watchedValues]);
 
-  const handleExportToExcel = () => {
+  const handleExportToCSV = () => {
     const data = form.getValues();
     const { totals: calculatedTotals, details: calculatedDetails } = calculateEmissions(data);
     
-    const wb = XLSX.utils.book_new();
-    const ws_data = [
+    const ws_data: (string | number)[][] = [
       [
         "Rubriques",
         "Méthodes",
@@ -404,9 +395,31 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         "Facteur d'émission armature (kg CO²e)",
         "Masse de ferraillage (kg/m³)",
         "Commentaires explicatifs",
+        "Facteur d'émission (kg CO²e)",
         "Kg CO²e"
       ]
     ];
+
+    const getEmissionFactor = (rubrique: string, item: any) => {
+      switch (rubrique) {
+        case 'Matériaux':
+          if (item.material === 'Béton') {
+            const concreteFactor = emissionFactors.concrete.find(c => c.name === item.concreteType)?.factor || 0;
+            return `Béton: ${concreteFactor}, Armature: ${item.rebarFactor || 0}`;
+          }
+          return emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
+        case 'Fabrication':
+          return emissionFactors.manufacturing.find(p => p.name === item.process)?.factor || 0;
+        case 'Mise en œuvre':
+          return emissionFactors.implementation.find(i => i.name === item.process)?.factor || 0;
+        case 'Transport':
+          return emissionFactors.transport.find(t => t.name === item.mode)?.factor || 0;
+        case 'Fin de vie':
+          return emissionFactors.endOfLife.find(e => e.name === item.method)?.factor || 0;
+        default:
+          return 0;
+      }
+    };
 
     const addRow = (rubrique: string, item: any, co2e: number) => {
         let quantityDisplay = '';
@@ -457,6 +470,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
             rebarFactorDisplay,
             rebarMassDisplay,
             commentDisplay,
+            getEmissionFactor(rubrique, item),
             co2e.toFixed(2)
         ]);
     };
@@ -496,16 +510,26 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
       "",
       "",
       "",
+      "",
       calculatedTotals.grandTotal.toFixed(2)
     ]);
     
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
-    XLSX.utils.book_append_sheet(wb, ws, "Bilan Carbone");
-    XLSX.writeFile(wb, `bilan_carbone_${consultationLabel.replace(/ /g, '_') || 'export'}.xlsx`);
+    const csvContent = XLSX.utils.sheet_to_csv(ws);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.href) {
+        URL.revokeObjectURL(link.href);
+    }
+    link.href = URL.createObjectURL(blob);
+    link.download = `bilan_carbone_${consultationLabel.replace(/ /g, '_') || 'export'}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     
     toast({
         title: "Exportation réussie",
-        description: "Le fichier du bilan carbone a été téléchargé.",
+        description: "Le fichier CSV du bilan carbone a été téléchargé.",
     });
   };
 
@@ -626,60 +650,6 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         }
     };
     reader.readAsArrayBuffer(file);
-  };
-
-  const handleGetSuggestions = async () => {
-    startSuggestionTransition(async () => {
-      setSuggestion(null);
-      const values = form.getValues();
-      const { totals, details } = calculateEmissions(values);
-
-      if (totals.grandTotal === 0) {
-        toast({
-          variant: "destructive",
-          title: "Analyse impossible",
-          description: "Veuillez entrer des données avant de demander une suggestion.",
-        });
-        return;
-      }
-      
-      const allComments = [
-        ...values.rawMaterials.map(i => i.comment ? `Matériau (${i.material}): ${i.comment}`: null),
-        ...values.manufacturing.map(i => i.comment ? `Fabrication (${i.process}): ${i.comment}`: null),
-        ...values.implementation.map(i => i.comment ? `Mise en œuvre (${i.process}): ${i.comment}`: null),
-        ...values.transport.map(i => i.comment ? `Transport (${i.mode}): ${i.comment}`: null),
-        ...values.endOfLife.map(i => i.comment ? `Fin de vie (${i.method}): ${i.comment}`: null)
-      ].filter(Boolean).join('; ');
-
-      try {
-        const result = await suggestImprovements({
-          summary: {
-            totalEmissions: totals.grandTotal,
-            materialEmissions: totals.rawMaterials,
-            manufacturingEmissions: totals.manufacturing,
-            implementationEmissions: totals.implementation,
-            transportEmissions: totals.transport,
-            endOfLifeEmissions: totals.endOfLife,
-          },
-          details: {
-            materials: details.rawMaterials.map(m => `${m.name}: ${m.co2e.toFixed(2)} kgCO2e`),
-            manufacturing: details.manufacturing.map(m => `${m.name}: ${m.co2e.toFixed(2)} kgCO2e`),
-            implementation: details.implementation.map(m => `${m.name}: ${m.co2e.toFixed(2)} kgCO2e`),
-            transport: details.transport.map(m => `${m.name}: ${m.co2e.toFixed(2)} kgCO2e`),
-            endOfLife: details.endOfLife.map(m => `${m.name}: ${m.co2e.toFixed(2)} kgCO2e`),
-          },
-          comments: allComments
-        });
-        setSuggestion(result);
-      } catch (error) {
-        console.error("Erreur lors de la suggestion d'améliorations:", error);
-        toast({
-          variant: "destructive",
-          title: "Service IA indisponible",
-          description: "Le service est momentanément surchargé. Veuillez réessayer dans quelques instants.",
-        });
-      }
-    });
   };
 
   return (
@@ -1235,39 +1205,6 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
             </div>
           </Tabs>
 
-          <SectionCard
-            title="Suggestions d'amélioration"
-            description="Laissez l'IA analyser votre bilan et proposer des pistes d'optimisation."
-            icon={Sparkles}
-            actions={
-              <Button type="button" variant="outline" size="sm" onClick={handleGetSuggestions} disabled={isSuggestionPending}>
-                {isSuggestionPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                Obtenir des suggestions
-              </Button>
-            }
-          >
-            {isSuggestionPending && (
-              <div className="space-y-2 pt-4">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-1/2" />
-              </div>
-            )}
-            {suggestion && !isSuggestionPending && (
-              <div className="space-y-4 pt-4 text-sm">
-                <p><strong>Bilan de l'IA :</strong> {suggestion.assessment}</p>
-                <div className="prose prose-sm prose-invert max-w-none">
-                  <strong>Recommandations :</strong>
-                  <ul>
-                    {suggestion.recommendations.map((rec, i) => <li key={i}>{rec}</li>)}
-                  </ul>
-                </div>
-              </div>
-            )}
-            {!suggestion && !isSuggestionPending && (
-              <p className="text-sm text-center text-muted-foreground pt-4">Aucune suggestion pour le moment.</p>
-            )}
-          </SectionCard>
         </div>
 
         <div className="w-full print-container lg:col-span-1 flex flex-col gap-8">
@@ -1284,9 +1221,9 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                     <FileUp className="mr-2 h-4 w-4" />
                     Importer bilan
                 </Button>
-                <Button type="button" variant="outline" onClick={handleExportToExcel}>
+                <Button type="button" variant="outline" onClick={handleExportToCSV}>
                   <FileSpreadsheet className="mr-2 h-4 w-4" />
-                  Générer le bilan (XLS)
+                  Générer le bilan (CSV)
                 </Button>
             </div>
         </div>
@@ -1294,3 +1231,5 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </Form>
   );
 }
+
+    
