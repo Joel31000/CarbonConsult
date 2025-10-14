@@ -15,6 +15,7 @@ import {
   Trash2,
   Truck,
   FileUp,
+  Zap,
 } from "lucide-react";
 import { Construction, FileSpreadsheet } from "@/components/icons";
 import React, { useMemo, useRef } from "react";
@@ -84,6 +85,13 @@ const formSchema = z.object({
       comment: z.string().optional(),
     })
   ),
+  energy: z.array(
+    z.object({
+      source: z.string().min(1, "Veuillez sélectionner une source."),
+      consumption: z.coerce.number().min(0.01, "La consommation doit être supérieure à 0."),
+      comment: z.string().optional(),
+    })
+  ),
   implementation: z.array(
     z.object({
       process: z.string().min(1, "Veuillez sélectionner un processus."),
@@ -107,6 +115,7 @@ const materialOptions = emissionFactors.materials.map((m) => m.name);
 const concreteOptions = emissionFactors.concrete.map((c) => c.name);
 const rebarOptions = emissionFactors.rebar;
 const processOptions = emissionFactors.manufacturing.map((p) => p.name);
+const energyOptions = emissionFactors.energy.map((e) => e.name);
 const implementationOptions = emissionFactors.implementation.map((i) => i.name);
 const transportOptions = emissionFactors.transport.map((t) => t.name);
 
@@ -148,6 +157,7 @@ const TotalsDisplay = ({
   totals: {
     rawMaterials: number;
     manufacturing: number;
+    energy: number;
     implementation: number;
     transport: number;
     grandTotal: number;
@@ -155,6 +165,7 @@ const TotalsDisplay = ({
   details: {
     rawMaterials: { name: string; co2e: number }[];
     manufacturing: { name: string; co2e: number }[];
+    energy: { name: string; co2e: number }[];
     implementation: { name: string; co2e: number }[];
     transport: { name: string; co2e: number }[];
   };
@@ -187,6 +198,10 @@ const TotalsDisplay = ({
       {
         name: "Fabrication",
         ...details.manufacturing.reduce((acc, item) => ({ ...acc, [item.name]: item.co2e }), {})
+      },
+      {
+        name: "Energie",
+        ...details.energy.reduce((acc, item) => ({ ...acc, [item.name]: item.co2e }), {})
       },
       {
         name: "Mise en œuvre",
@@ -257,6 +272,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     defaultValues: {
       rawMaterials: [],
       manufacturing: [],
+      energy: [],
       implementation: [],
       transport: [],
     },
@@ -269,6 +285,10 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
   const { fields: mfgFields, append: mfgAppend, remove: mfgRemove } = useFieldArray({
     control: form.control,
     name: "manufacturing",
+  });
+  const { fields: energyFields, append: energyAppend, remove: energyRemove } = useFieldArray({
+    control: form.control,
+    name: "energy",
   });
   const { fields: implFields, append: implAppend, remove: implRemove } = useFieldArray({
     control: form.control,
@@ -318,6 +338,11 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
       return { name: item.process || "Inconnu", co2e: (item.value || 0) * factor };
     }).filter(item => item.co2e > 0) || [];
 
+    const energyDetails = values.energy?.map(item => {
+      const factor = emissionFactors.energy.find(e => e.name === item.source)?.factor || 0;
+      return { name: item.source || "Inconnu", co2e: (item.consumption || 0) * factor };
+    }).filter(item => item.co2e > 0) || [];
+
     const implDetails = values.implementation?.map(item => {
       const factor = emissionFactors.implementation.find(i => i.name === item.process)?.factor || 0;
       return { name: item.process || "Inconnu", co2e: (item.duration || 0) * factor };
@@ -330,6 +355,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
 
     const rmTotal = rmDetails.reduce((sum, item) => sum + item.co2e, 0);
     const mfgTotal = mfgDetails.reduce((sum, item) => sum + item.co2e, 0);
+    const energyTotal = energyDetails.reduce((sum, item) => sum + item.co2e, 0);
     const implTotal = implDetails.reduce((sum, item) => sum + item.co2e, 0);
     const tptTotal = tptDetails.reduce((sum, item) => sum + item.co2e, 0);
 
@@ -337,13 +363,15 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
       totals: {
         rawMaterials: rmTotal,
         manufacturing: mfgTotal,
+        energy: energyTotal,
         implementation: implTotal,
         transport: tptTotal,
-        grandTotal: rmTotal + mfgTotal + implTotal + tptTotal,
+        grandTotal: rmTotal + mfgTotal + energyTotal + implTotal + tptTotal,
       },
       details: {
         rawMaterials: rmDetails,
         manufacturing: mfgDetails,
+        energy: energyDetails,
         implementation: implDetails,
         transport: tptDetails,
       }
@@ -381,6 +409,8 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                     return emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
                 case 'Fabrication':
                     return emissionFactors.manufacturing.find(p => p.name === item.process)?.factor || 0;
+                case 'Energie':
+                    return emissionFactors.energy.find(e => e.name === item.source)?.factor || 0;
                 case 'Mise en œuvre':
                     return emissionFactors.implementation.find(i => i.name === item.process)?.factor || 0;
                 case 'Transport':
@@ -392,7 +422,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
 
         const addRow = (rubrique: string, item: any, co2e: number) => {
             let row: (string | number)[] = Array(header.length).fill('');
-            let methodName = item.material || item.process || item.mode || item.method;
+            let methodName = item.material || item.process || item.mode || item.source;
 
             row[0] = rubrique;
             row[10] = item.comment || '';
@@ -415,6 +445,10 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                 row[3] = (item.value || 0).toString();
                 const processData = emissionFactors.manufacturing.find(m => m.name === item.process);
                 row[2] = processData?.unit.endsWith('/hr') ? 'H' : 'kg';
+                row[4] = getEmissionFactor(rubrique, item);
+            } else if (rubrique === 'Energie') {
+                row[3] = (item.consumption || 0).toString();
+                row[2] = 'H';
                 row[4] = getEmissionFactor(rubrique, item);
             } else if (rubrique === 'Mise en œuvre') {
                 row[3] = (item.duration || 0).toString();
@@ -441,6 +475,11 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         data.manufacturing?.forEach((item, index) => {
             const co2eItem = calculatedDetails.manufacturing.find((d, i) => i === index);
             if (item.process) addRow('Fabrication', item, co2eItem?.co2e || 0);
+        });
+        
+        data.energy?.forEach((item, index) => {
+            const co2eItem = calculatedDetails.energy.find((d, i) => i === index);
+            if (item.source) addRow('Energie', item, co2eItem?.co2e || 0);
         });
 
         data.implementation?.forEach((item, index) => {
@@ -531,6 +570,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
             const newValues: FormValues = {
                 rawMaterials: [],
                 manufacturing: [],
+                energy: [],
                 implementation: [],
                 transport: [],
             };
@@ -585,6 +625,13 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                             comment: comment,
                         });
                         break;
+                    case 'Energie':
+                        newValues.energy.push({
+                            source: methodName,
+                            consumption: quantity,
+                            comment: comment,
+                        });
+                        break;
                     case 'Mise en œuvre':
                         newValues.implementation.push({
                             process: methodName,
@@ -630,12 +677,15 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
       >
         <div className="lg:col-span-2 flex flex-col gap-8">
           <Tabs defaultValue="materials" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 print:hidden">
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 print:hidden">
               <TabsTrigger value="materials">
                 <Leaf className="mr-2 h-4 w-4" /> Matériaux
               </TabsTrigger>
               <TabsTrigger value="manufacturing">
                 <Factory className="mr-2 h-4 w-4" /> Fabrication
+              </TabsTrigger>
+              <TabsTrigger value="energy">
+                <Zap className="mr-2 h-4 w-4" /> Energie
               </TabsTrigger>
               <TabsTrigger value="implementation">
                 <Construction className="mr-2 h-4 w-4" /> Mise en œuvre
@@ -921,6 +971,85 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                   </SectionCard>
                 </TabsContent>
 
+                <TabsContent value="energy">
+                  <SectionCard
+                    title="Énergie"
+                    description="Spécifiez la consommation d'énergie du projet."
+                    icon={Zap}
+                    actions={
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => energyAppend({ source: "", consumption: 0, comment: "" })}
+                      >
+                        <PlusCircle className="mr-2 h-4 w-4" /> Ajouter une source
+                      </Button>
+                    }
+                  >
+                    {energyFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucune source d'énergie ajoutée.</p>}
+                    {energyFields.map((field, index) => (
+                      <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
+                        <div className="flex flex-col gap-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <FormField
+                              control={form.control}
+                              name={`energy.${index}.source`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Source d'énergie</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Sélectionnez une source" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {energyOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`energy.${index}.consumption`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Consommation (heures)</FormLabel>
+                                  <FormControl>
+                                    <Input type="number" placeholder="ex: 100" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <FormField
+                            control={form.control}
+                            name={`energy.${index}.comment`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Commentaires</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Hypothèses, détails..." {...field} value={field.value ?? ''} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="pt-8">
+                          <Button type="button" variant="ghost" size="icon" onClick={() => energyRemove(index)}>
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </SectionCard>
+                </TabsContent>
+
                 <TabsContent value="implementation">
                   <SectionCard
                     title="Mise en œuvre"
@@ -1121,5 +1250,3 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </Form>
   );
 }
-
-    

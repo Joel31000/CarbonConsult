@@ -50,6 +50,16 @@ export const emissionFactors = {
     { name: "Soudage", factor: 0.26, unit: "kg CO2e/hr" },
     { name: "Usinage", factor: 5.0, unit: "kg CO2e/hr" },
   ],
+  energy: [
+    { name: "Groupe électrogène gazole", factor: 0.837, unit: "kg CO2e/H" },
+    { name: "Groupe électrogène gazole non routier", factor: 0.853, unit: "kg CO2e/H" },
+    { name: "Groupe électrogène biodiesel B100", factor: 0.327, unit: "kg CO2e/H" },
+    { name: "Groupe électrogène biodiesel HVO100", factor: 0.146, unit: "kg CO2e/H" },
+    { name: "Groupe électrogène bioétahnol essence SP95 E10, E85", factor: 0.229, unit: "kg CO2e/H" },
+    { name: "Station électrique portable", factor: 0.078, unit: "kg CO2e/H" },
+    { name: "Groupe électrogène à hydrogène", factor: 0.137, unit: "kg CO2e/H" },
+    { name: "Utilisation réseau électrique Français", factor: 0.052, unit: "kg CO2e/H" },
+  ].sort((a, b) => a.name.localeCompare(b.name)),
   implementation: [
     { name: "Bétonnière", factor: 8.5, unit: "kg CO2e/hr" },
     { name: "Foreuse (1500 W)", factor: 1.5, unit: "kg CO2e/hr" },
@@ -84,5 +94,3 @@ export const emissionFactors = {
     { name: "Voiture GPL", factor: 0.161, unit: "kg CO2e/t.km" },
   ].sort((a, b) => a.name.localeCompare(b.name)),
 };
-
-    
