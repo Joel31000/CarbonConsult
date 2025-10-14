@@ -63,7 +63,6 @@ export const emissionFactors = {
   implementation: [
     { name: "Bétonnière", factor: 8.5, unit: "kg CO2e/hr" },
     { name: "Foreuse (1500 W)", factor: 1.5, unit: "kg CO2e/hr" },
-    { name: "Groupe électrogène", factor: 10.5, unit: "kg CO2e/hr" },
     { name: "Grue", factor: 13.5, unit: "kg CO2e/hr" },
     { name: "machines béton projeté compact (3,5-5,5 KW)", factor: 0.09, unit: "kg CO2e/hr" },
     { name: "machines béton projeté haute capacité (>13 KW)", factor: 0.88, unit: "kg CO2e/hr" },
