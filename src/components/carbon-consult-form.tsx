@@ -95,7 +95,7 @@ const formSchema = z.object({
   implementation: z.array(
     z.object({
       process: z.string().min(1, "Veuillez sélectionner un processus."),
-      duration: z.coerce.number().min(0.01, "La durée doit être supérieure à 0."),
+      value: z.coerce.number().min(0.01, "La valeur doit être supérieure à 0."),
       comment: z.string().optional(),
     })
   ),
@@ -301,7 +301,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
 
   const watchedValues = useWatch({ control: form.control });
   const watchedRawMaterials = useWatch({ control: form.control, name: "rawMaterials" });
-  const watchedManufacturing = useWatch({ control: form.control, name: "manufacturing" });
+  const watchedImplementation = useWatch({ control: form.control, name: "implementation" });
 
 
   const calculateEmissions = (values: FormValues) => {
@@ -345,7 +345,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
 
     const implDetails = values.implementation?.map(item => {
       const factor = emissionFactors.implementation.find(i => i.name === item.process)?.factor || 0;
-      return { name: item.process || "Inconnu", co2e: (item.duration || 0) * factor };
+      return { name: item.process || "Inconnu", co2e: (item.value || 0) * factor };
     }).filter(item => item.co2e > 0) || [];
 
     const tptDetails = values.transport?.map(item => {
@@ -423,12 +423,13 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
         const addRow = (rubrique: string, item: any, co2e: number) => {
             let row: (string | number)[] = Array(header.length).fill('');
             let methodName = item.material || item.process || item.mode || item.source;
+            let quantity = item.quantity || item.value || item.consumption || item.distance || 0;
 
             row[0] = rubrique;
             row[10] = item.comment || '';
 
             if (rubrique === 'Matériaux') {
-                row[3] = (item.quantity || 0).toString();
+                row[3] = quantity;
                 row[2] = item.material === 'Béton' ? 'm³' : 'kg';
                 row[4] = getEmissionFactor(rubrique, item);
 
@@ -442,20 +443,21 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                     }
                 }
             } else if (rubrique === 'Fabrication') {
-                row[3] = (item.value || 0).toString();
+                row[3] = quantity;
                 const processData = emissionFactors.manufacturing.find(m => m.name === item.process);
                 row[2] = processData?.unit.endsWith('/hr') ? 'H' : 'kg';
                 row[4] = getEmissionFactor(rubrique, item);
             } else if (rubrique === 'Energie') {
-                row[3] = (item.consumption || 0).toString();
+                row[3] = quantity;
                 row[2] = 'H';
                 row[4] = getEmissionFactor(rubrique, item);
             } else if (rubrique === 'Mise en œuvre') {
-                row[3] = (item.duration || 0).toString();
-                row[2] = 'H';
+                row[3] = quantity;
+                 const processData = emissionFactors.implementation.find(m => m.name === item.process);
+                row[2] = processData?.unit.endsWith('/hr') ? 'H' : 'kg';
                 row[4] = getEmissionFactor(rubrique, item);
             } else if (rubrique === 'Transport') {
-                row[3] = (item.distance || 0).toString();
+                row[3] = quantity;
                 row[2] = 'km';
                 row[8] = (item.weight || 0).toString();
                 row[4] = getEmissionFactor(rubrique, item);
@@ -635,7 +637,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                     case 'Mise en œuvre':
                         newValues.implementation.push({
                             process: methodName,
-                            duration: quantity,
+                            value: quantity,
                             comment: comment,
                         });
                         break;
@@ -903,11 +905,6 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                   >
                       {mfgFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucun processus ajouté.</p>}
                       {mfgFields.map((field, index) => {
-                        const selectedProcess = watchedManufacturing[index]?.process;
-                        const isPaint = selectedProcess === 'Peinture';
-                        const label = isPaint ? 'Quantité (kg)' : 'Durée (heures)';
-                        const placeholder = isPaint ? 'ex: 10' : 'ex: 50';
-
                         return (
                           <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
                             <div className="flex flex-col gap-4">
@@ -937,9 +934,9 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                                   name={`manufacturing.${index}.value`}
                                   render={({ field }) => (
                                     <FormItem>
-                                      <FormLabel>{label}</FormLabel>
+                                      <FormLabel>Durée (heures)</FormLabel>
                                       <FormControl>
-                                        <Input type="number" placeholder={placeholder} {...field} />
+                                        <Input type="number" placeholder="ex: 50" {...field} />
                                       </FormControl>
                                       <FormMessage />
                                     </FormItem>
@@ -1060,72 +1057,79 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => implAppend({ process: "", duration: 0, comment: "" })}
+                        onClick={() => implAppend({ process: "", value: 0, comment: "" })}
                       >
                         <PlusCircle className="mr-2 h-4 w-4" /> Ajouter un processus
                       </Button>
                     }
                   >
                     {implFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucun processus ajouté.</p>}
-                    {implFields.map((field, index) => (
-                      <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
-                        <div className="flex flex-col gap-4">
-                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <FormField
-                              control={form.control}
-                              name={`implementation.${index}.process`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Processus</FormLabel>
-                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    {implFields.map((field, index) => {
+                       const selectedProcess = watchedImplementation[index]?.process;
+                       const isPaint = selectedProcess === 'Peinture industrielle';
+                       const label = isPaint ? 'Quantité (kg)' : 'Durée (heures)';
+                       const placeholder = isPaint ? 'ex: 10' : 'ex: 50';
+
+                      return (
+                        <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
+                          <div className="flex flex-col gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <FormField
+                                control={form.control}
+                                name={`implementation.${index}.process`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Processus</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Sélectionnez un processus" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {implementationOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`implementation.${index}.value`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>{label}</FormLabel>
                                     <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Sélectionnez un processus" />
-                                      </SelectTrigger>
+                                      <Input type="number" placeholder={placeholder} {...field} />
                                     </FormControl>
-                                    <SelectContent>
-                                      {implementationOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
                             <FormField
                               control={form.control}
-                              name={`implementation.${index}.duration`}
+                              name={`implementation.${index}.comment`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Durée (heures)</FormLabel>
+                                  <FormLabel>Commentaires</FormLabel>
                                   <FormControl>
-                                    <Input type="number" placeholder="ex: 50" {...field} />
+                                    <Input placeholder="Hypothèses, détails..." {...field} value={field.value ?? ''} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
                           </div>
-                          <FormField
-                            control={form.control}
-                            name={`implementation.${index}.comment`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Commentaires</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Hypothèses, détails..." {...field} value={field.value ?? ''} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                          <div className="pt-8">
+                            <Button type="button" variant="ghost" size="icon" onClick={() => implRemove(index)}>
+                              <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="pt-8">
-                          <Button type="button" variant="ghost" size="icon" onClick={() => implRemove(index)}>
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </SectionCard>
                 </TabsContent>
 
@@ -1250,3 +1254,5 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
     </Form>
   );
 }
+
+    

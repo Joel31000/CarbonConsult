@@ -1,3 +1,4 @@
+
 export const emissionFactors = {
   materials: [
     { name: "Acier (Recyclé)", factor: 0.5, unit: "kg CO2e/kg" },
@@ -46,8 +47,6 @@ export const emissionFactors = {
   ],
   manufacturing: [
     { name: "Impression 3D (Plastique)", factor: 0.01, unit: "kg CO2e/hr" },
-    { name: "Peinture", factor: 3.65, unit: "kg CO2e/kg" },
-    { name: "Soudage", factor: 0.26, unit: "kg CO2e/hr" },
     { name: "Usinage", factor: 5.0, unit: "kg CO2e/hr" },
   ],
   energy: [
@@ -71,6 +70,8 @@ export const emissionFactors = {
     { name: "Marteau piqueur pneumatique", factor: 3.5, unit: "kg CO2e/hr" },
     { name: "Pelle araignée", factor: 14.5, unit: "kg CO2e/hr" },
     { name: "Pelleuteuse", factor: 20.0, unit: "kg CO2e/hr" },
+    { name: "Soudage", factor: 0.26, unit: "kg CO2e/hr" },
+    { name: "Peinture industrielle", factor: 3.65, unit: "kg CO2e/kg" },
   ].sort((a, b) => a.name.localeCompare(b.name)),
   transport: [
     { name: "Avion (Cargo)", factor: 0.5, unit: "kg CO2e/t.km" },
@@ -93,3 +94,5 @@ export const emissionFactors = {
     { name: "Voiture GPL", factor: 0.161, unit: "kg CO2e/t.km" },
   ].sort((a, b) => a.name.localeCompare(b.name)),
 };
+
+    
