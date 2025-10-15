@@ -97,7 +97,7 @@ export default function Home() {
                     CarbonImpact est une application mise à la disposition des fournisseurs pour calculer le bilan carbone de leurs offres lors des consultations.
                   </p>
                   <p>
-                    Le périmètre du calcul du bilan carbone est conforme à la méthodologie d’analyse du cycle de vie (ACV). Il prend en compte les postes : Matériaux, Fabrication, Mise en œuvre, Transport et Fin de vie.
+                    Le périmètre du calcul du bilan carbone prend en compte les postes : Matériaux, Fabrication, Energie, Transport et Mise en œuvre.
                   </p>
                   <p>
                     Le fournisseur implémente progressivement les différents postes qui vont s’additionner automatiquement. Le graphique du bilan carbone permet de visualiser les détails de la répartition de l’empreinte carbone par poste.
