@@ -12,9 +12,14 @@ export const emissionFactors = {
     { name: "Cuivre Classique", factor: 4.50, unit: "kg CO2e/kg" },
     { name: "Cuivre recyclé", factor: 1.50, unit: "kg CO2e/kg" },
     { name: "Papier/Carton", factor: 0.6, unit: "kg CO2e/kg" },
+    { name: "Peinture", factor: 0, unit: "kg CO2e/m²" }, // Calcul dynamique
     { name: "Plastique (PET)", factor: 2.3, unit: "kg CO2e/kg" },
     { name: "Verre", factor: 0.9, unit: "kg CO2e/kg" },
   ].sort((a, b) => a.name.localeCompare(b.name)),
+  paint: Array.from({ length: 16 }, (_, i) => 1.0 + i * 0.1).map(v => ({
+    name: `${v.toFixed(1)} kgCO₂eq/m²`,
+    factor: v,
+  })),
   concrete: [
     // Facteurs d'émission pour 1 tonne de ciment. Unité: tCO2eq/t de ciment
     { name: "CEM I (ATILH)", factor: 0.752, unit: "tCO₂eq/t" },
@@ -96,3 +101,5 @@ export const emissionFactors = {
     { name: "Voiture GPL", factor: 0.161, unit: "kg CO2e/t.km" },
   ].sort((a, b) => a.name.localeCompare(b.name)),
 };
+
+    

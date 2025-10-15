@@ -76,6 +76,7 @@ const formSchema = z.object({
       isReinforced: z.boolean().optional(),
       rebarMass: z.coerce.number().optional(),
       rebarFactor: z.coerce.number().optional(),
+      paintFactor: z.coerce.number().optional(),
     })
   ),
   manufacturing: z.array(
@@ -112,6 +113,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const materialOptions = emissionFactors.materials.map((m) => m.name);
+const paintOptions = emissionFactors.paint;
 const concreteOptions = emissionFactors.concrete.map((c) => c.name);
 const rebarOptions = emissionFactors.rebar;
 const processOptions = emissionFactors.manufacturing.map((p) => p.name);
@@ -304,7 +306,6 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
   const watchedManufacturing = useWatch({ control: form.control, name: "manufacturing" });
   const watchedImplementation = useWatch({ control: form.control, name: "implementation" });
 
-
   const calculateEmissions = (values: FormValues) => {
     const rmDetails = values.rawMaterials?.map(item => {
       let co2e = 0;
@@ -326,7 +327,11 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
           co2e += rebarCO2e;
           name = `${name} armé`;
         }
-      } else {
+      } else if (item.material === "Peinture") {
+        name = "Peinture";
+        co2e = (item.quantity || 0) * (item.paintFactor || 0);
+      }
+      else {
         const factor = emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
         co2e = (item.quantity || 0) * factor;
       }
@@ -407,6 +412,9 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                     if (item.material === 'Béton') {
                         return emissionFactors.concrete.find(c => c.name === item.concreteType)?.factor || 0;
                     }
+                    if (item.material === 'Peinture') {
+                        return item.paintFactor || 0;
+                    }
                     return emissionFactors.materials.find(m => m.name === item.material)?.factor || 0;
                 case 'Fabrication':
                     return emissionFactors.manufacturing.find(p => p.name === item.process)?.factor || 0;
@@ -431,17 +439,22 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
 
             if (rubrique === 'Matériaux') {
                 row[3] = quantity;
-                row[2] = item.material === 'Béton' ? 'm³' : 'kg';
                 row[4] = getEmissionFactor(rubrique, item);
 
                 if (item.material === "Béton") {
                     methodName = item.concreteType || "Béton";
+                    row[2] = 'm³';
                     row[5] = (item.cementMass || 0).toString();
                     if (item.isReinforced) {
                         methodName += " armé";
                         row[6] = (item.rebarFactor || 0).toString();
                         row[7] = (item.rebarMass || 0).toString();
                     }
+                } else if (item.material === "Peinture") {
+                    methodName = "Peinture";
+                    row[2] = 'm²';
+                } else {
+                    row[2] = 'kg';
                 }
             } else if (rubrique === 'Fabrication') {
                 row[3] = quantity;
@@ -607,6 +620,8 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                         } else if (emissionFactors.concrete.some(c => c.name === methodName)) {
                             material = 'Béton';
                             concreteType = methodName;
+                        } else if (methodName === "Peinture") {
+                            material = "Peinture";
                         }
                         
                         newValues.rawMaterials.push({
@@ -618,6 +633,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                             isReinforced: isReinforced,
                             rebarMass: Number(row[headerMap['Masse de ferraillage (kg/m³)']]) || 0,
                             rebarFactor: Number(row[headerMap["Facteur d'émission armature (kg CO²e)"]]) || 0,
+                            paintFactor: material === 'Peinture' ? Number(row[headerMap["Facteur d'émission (kg CO²e)"]]) : undefined,
                         });
                         break;
                     }
@@ -717,7 +733,8 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                           cementMass: 0,
                           isReinforced: false,
                           rebarMass: 0,
-                          rebarFactor: 1.2
+                          rebarFactor: 1.2,
+                          paintFactor: 1.6,
                         })}
                       >
                         <PlusCircle className="mr-2 h-4 w-4" /> Ajouter un matériau
@@ -726,8 +743,14 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                   >
                     {rmFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucun matériau ajouté.</p>}
                     {rmFields.map((field, index) => {
-                      const isConcrete = watchedRawMaterials[index]?.material === 'Béton';
+                      const selectedMaterial = watchedRawMaterials[index]?.material;
+                      const isConcrete = selectedMaterial === 'Béton';
+                      const isPaint = selectedMaterial === 'Peinture';
                       const isReinforced = isConcrete && watchedRawMaterials[index]?.isReinforced;
+
+                      let quantityUnit = 'kg';
+                      if (isConcrete) quantityUnit = 'm³';
+                      if (isPaint) quantityUnit = 'm²';
 
                       return (
                       <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
@@ -758,9 +781,9 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                               name={`rawMaterials.${index}.quantity`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Quantité ({isConcrete ? 'm³' : 'kg'})</FormLabel>
+                                  <FormLabel>Quantité ({quantityUnit})</FormLabel>
                                   <FormControl>
-                                    <Input type="number" placeholder={isConcrete ? "ex: 10" : "ex: 100"} {...field} />
+                                    <Input type="number" placeholder="ex: 100" {...field} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -768,6 +791,32 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                             />
                           </div>
                           
+                          {isPaint && (
+                            <div className="grid grid-cols-1 gap-4 rounded-md border bg-card/50 p-4">
+                              <p className="col-span-full font-medium text-sm">Paramètres de la peinture</p>
+                               <FormField
+                                control={form.control}
+                                name={`rawMaterials.${index}.paintFactor`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Facteur d'émission de la peinture</FormLabel>
+                                    <Select onValueChange={(value) => field.onChange(parseFloat(value))} defaultValue={field.value?.toString()}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Sélectionnez un facteur" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {paintOptions.map(p => <SelectItem key={p.name} value={p.factor.toString()}>{p.name}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          )}
+
                           {isConcrete && (
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 rounded-md border bg-card/50 p-4">
                                <FormField
@@ -907,9 +956,10 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                       {mfgFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucun processus ajouté.</p>}
                       {mfgFields.map((field, index) => {
                         const selectedProcess = watchedManufacturing[index]?.process;
-                        const isPaint = selectedProcess === 'Peinture en fabrication';
-                        const label = isPaint ? 'Quantité (kg)' : 'Durée (heures)';
-                        const placeholder = isPaint ? 'ex: 10' : 'ex: 50';
+                        const processData = emissionFactors.manufacturing.find(p => p.name === selectedProcess);
+                        const isTimeBased = processData?.unit.endsWith('/hr');
+                        const label = isTimeBased ? 'Durée (heures)' : 'Quantité (kg)';
+                        const placeholder = isTimeBased ? 'ex: 50' : 'ex: 10';
 
                         return (
                           <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
@@ -1072,9 +1122,10 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                     {implFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucun processus ajouté.</p>}
                     {implFields.map((field, index) => {
                        const selectedProcess = watchedImplementation[index]?.process;
-                       const isPaint = selectedProcess === 'Peinture industrielle';
-                       const label = isPaint ? 'Quantité (kg)' : 'Durée (heures)';
-                       const placeholder = isPaint ? 'ex: 10' : 'ex: 50';
+                       const processData = emissionFactors.implementation.find(p => p.name === selectedProcess);
+                       const isTimeBased = processData?.unit.endsWith('/hr');
+                       const label = isTimeBased ? 'Durée (heures)' : 'Quantité (kg)';
+                       const placeholder = isTimeBased ? 'ex: 50' : 'ex: 10';
 
                       return (
                         <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
