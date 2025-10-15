@@ -301,6 +301,7 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
 
   const watchedValues = useWatch({ control: form.control });
   const watchedRawMaterials = useWatch({ control: form.control, name: "rawMaterials" });
+  const watchedManufacturing = useWatch({ control: form.control, name: "manufacturing" });
   const watchedImplementation = useWatch({ control: form.control, name: "implementation" });
 
 
@@ -905,6 +906,11 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                   >
                       {mfgFields.length === 0 && <p className="text-sm text-center text-muted-foreground pt-4">Aucun processus ajouté.</p>}
                       {mfgFields.map((field, index) => {
+                        const selectedProcess = watchedManufacturing[index]?.process;
+                        const isPaint = selectedProcess === 'Peinture en fabrication';
+                        const label = isPaint ? 'Quantité (kg)' : 'Durée (heures)';
+                        const placeholder = isPaint ? 'ex: 10' : 'ex: 50';
+
                         return (
                           <div key={field.id} className="grid grid-cols-[1fr_auto] items-start gap-4 rounded-md border p-4">
                             <div className="flex flex-col gap-4">
@@ -934,9 +940,9 @@ export function CarbonConsultForm({ consultationLabel }: { consultationLabel: st
                                   name={`manufacturing.${index}.value`}
                                   render={({ field }) => (
                                     <FormItem>
-                                      <FormLabel>Durée (heures)</FormLabel>
+                                      <FormLabel>{label}</FormLabel>
                                       <FormControl>
-                                        <Input type="number" placeholder="ex: 50" {...field} />
+                                        <Input type="number" placeholder={placeholder} {...field} />
                                       </FormControl>
                                       <FormMessage />
                                     </FormItem>

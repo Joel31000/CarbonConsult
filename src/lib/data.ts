@@ -47,8 +47,10 @@ export const emissionFactors = {
   ],
   manufacturing: [
     { name: "Impression 3D (Plastique)", factor: 0.01, unit: "kg CO2e/hr" },
+    { name: "Peinture en fabrication", factor: 3.65, unit: "kg CO2e/kg" },
+    { name: "Soudage en fabrication", factor: 0.26, unit: "kg CO2e/hr" },
     { name: "Usinage", factor: 5.0, unit: "kg CO2e/hr" },
-  ],
+  ].sort((a, b) => a.name.localeCompare(b.name)),
   energy: [
     { name: "Groupe électrogène gazole", factor: 0.837, unit: "kg CO2e/H" },
     { name: "Groupe électrogène gazole non routier", factor: 0.853, unit: "kg CO2e/H" },
