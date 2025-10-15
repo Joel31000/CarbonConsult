@@ -96,5 +96,3 @@ export const emissionFactors = {
     { name: "Voiture GPL", factor: 0.161, unit: "kg CO2e/t.km" },
   ].sort((a, b) => a.name.localeCompare(b.name)),
 };
-
-    
